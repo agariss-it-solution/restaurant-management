@@ -39,7 +39,7 @@ const login = async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
             JWT_SECRET,
-            { expiresIn: "1h" }
+            { expiresIn: "30D" }
         );
 
         return Response.Success({
@@ -58,4 +58,27 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = login;
+
+
+const logout = async (req, res) => {
+    try {
+        // If using cookies to store token, clear it
+        // res.clearCookie("token");
+
+        // If using Authorization header, just inform client to delete it locally
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Logout successful",
+            data: null,
+        });
+    } catch (error) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+    }
+};
+module.exports = {login,logout};
