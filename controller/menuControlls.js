@@ -1,11 +1,10 @@
-const MenuCategory = require("../models/MenuItem.js");
+const MenuCategory = require("../models/MenuCategory.js");
 const Response = require("../helper/errHandler.js"); // ✅ same helper
 
 // ✅ Create new category with items
 const createCategory = async (req, res) => {
     try {
         const { category, items } = req.body;
-
         if (!category) {
             return Response.Error({
                 res,
@@ -33,14 +32,14 @@ const createCategory = async (req, res) => {
     }
 };
 
-// ✅ Add item to an existing category
+// ✅ Add item to an existing category  
 const addItemToCategory = async (req, res) => {
     try {
-    
-        const  {id}  = req.params;
-      
+
+        const { id } = req.params;
+
         const { name, Price, description, imageUrl, isSpecial } = req.body;
-console.log('req.body', req.body)
+        console.log('req.body', req.body)
         const category = await MenuCategory.findById(id);
         if (!category) {
             return Response.Error({
@@ -94,7 +93,7 @@ const getAllCategories = async (req, res) => {
 const deleteCategory = async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const deleted = await MenuCategory.findByIdAndDelete(id);
 
         if (!deleted) {
@@ -134,6 +133,7 @@ const deleteItemFromCategory = async (req, res) => {
             });
         }
 
+        // ✅ Use pull() instead of item.remove()
         const item = category.items.id(itemId);
         if (!item) {
             return Response.Error({
@@ -143,7 +143,7 @@ const deleteItemFromCategory = async (req, res) => {
             });
         }
 
-        item.remove();
+        category.items.pull(itemId); // removes by id
         await category.save();
 
         return Response.Success({
@@ -161,11 +161,12 @@ const deleteItemFromCategory = async (req, res) => {
         });
     }
 };
+
 // ✅ Update an item's price (or other fields) inside a category
 const updateItemInCategory = async (req, res) => {
     try {
         const { id, itemId } = req.params;
-        const { name, price, description, imageUrl, isSpecial } = req.body;
+        const { name, Price, description, imageUrl, isSpecial } = req.body;
 
         const category = await MenuCategory.findById(id);
         if (!category) {
@@ -187,7 +188,7 @@ const updateItemInCategory = async (req, res) => {
 
         // ✅ Update only the provided fields
         if (name !== undefined) item.name = name;
-        if (price !== undefined) item.price = price;
+        if (Price !== undefined) item.Price = Price;
         if (description !== undefined) item.description = description;
         if (imageUrl !== undefined) item.imageUrl = imageUrl;
         if (isSpecial !== undefined) item.isSpecial = isSpecial;
