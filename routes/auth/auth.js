@@ -6,6 +6,8 @@ const login = require("../../controller/loginregister/login");
 const authtoken = require("../../middleware/authToken");
 const tableController = require("../../controller/tableController");
 const menuController = require("../../controller/menuControlls");
+const ordersendController = require("../../controller/ordersend");
+const payBill = require("../../controller/billpay");
 
 // ✅ Public routes
 app.post("/register", register);
@@ -26,8 +28,19 @@ app.post("/categories", menuController.createCategory); // create category
 app.get("/categories", menuController.getAllCategories); // get all categories
 app.delete("/categories/:id", menuController.deleteCategory); // delete category
 
-app.post("/categories/:id/items", menuController.addItemToCategory); // add item to category
+app.post("/categories/:id", menuController.addItemToCategory); // add item to category
 app.put("/categories/:id/items/:itemId", menuController.updateItemInCategory); // update item
 app.delete("/categories/:id/items/:itemId", menuController.deleteItemFromCategory); // delete item
 
+
+
+
+//--------ordefrsend routes--------
+app.post("/orders", ordersendController.createOrder);
+app.get("/orders", ordersendController.getKitchenOrders);
+app.put("/orders/:id", ordersendController.updateOrderStatus);
+// app.get("/orders/:id", ordersendController.getOrderById);
+
+// ----- Bill Routes -----
+app.post("/bills/:billId/pay", payBill);
 module.exports = app;

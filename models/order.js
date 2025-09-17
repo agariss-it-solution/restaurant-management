@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-
+const mongoose = require("mongoose");
 const orderSchema = new mongoose.Schema({
     table: { type: mongoose.Schema.Types.ObjectId, ref: "Table", required: true },
     items: [
@@ -15,8 +14,7 @@ const orderSchema = new mongoose.Schema({
         enum: ["Pending", "Preparing", "Ready", "Completed"],
         default: "Pending"
     },
-    totalPrice: { type: Number, required: true },
+    Price: { type: Number, required: true },
     createdAt: { type: Date, default: Date.now }
 });
-
-export default mongoose.model("Order", orderSchema);
+module.exports = mongoose.model("Order", orderSchema);

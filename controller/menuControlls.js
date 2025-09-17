@@ -39,7 +39,7 @@ const addItemToCategory = async (req, res) => {
         const { id } = req.params;
 
         const { name, Price, description, imageUrl, isSpecial } = req.body;
-        console.log('req.body', req.body)
+        // console.log('req.body', req.body)
         const category = await MenuCategory.findById(id);
         if (!category) {
             return Response.Error({
@@ -163,53 +163,53 @@ const deleteItemFromCategory = async (req, res) => {
 };
 
 // ✅ Update an item's price (or other fields) inside a category
-const updateItemInCategory = async (req, res) => {
-    try {
-        const { id, itemId } = req.params;
-        const { name, Price, description, imageUrl, isSpecial } = req.body;
+    const updateItemInCategory = async (req, res) => {
+        try {
+            const { id, itemId } = req.params;
+            const { name, Price, description, imageUrl, isSpecial } = req.body;
 
-        const category = await MenuCategory.findById(id);
-        if (!category) {
+            const category = await MenuCategory.findById(id);
+            if (!category) {
+                return Response.Error({
+                    res,
+                    status: 404,
+                    message: "Category not found",
+                });
+            }
+
+            const item = category.items.id(itemId);
+            if (!item) {
+                return Response.Error({
+                    res,
+                    status: 404,
+                    message: "Item not found",
+                });
+            }
+
+            // ✅ Update only the provided fields
+            if (name !== undefined) item.name = name;
+            if (Price !== undefined) item.Price = Price;
+            if (description !== undefined) item.description = description;
+            if (imageUrl !== undefined) item.imageUrl = imageUrl;
+            if (isSpecial !== undefined) item.isSpecial = isSpecial;
+
+            await category.save();
+
+            return Response.Success({
+                res,
+                status: 200,
+                message: "Item updated successfully",
+                data: category,
+            });
+        } catch (err) {
             return Response.Error({
                 res,
-                status: 404,
-                message: "Category not found",
+                status: 500,
+                message: "Error updating item",
+                error: err.message,
             });
         }
-
-        const item = category.items.id(itemId);
-        if (!item) {
-            return Response.Error({
-                res,
-                status: 404,
-                message: "Item not found",
-            });
-        }
-
-        // ✅ Update only the provided fields
-        if (name !== undefined) item.name = name;
-        if (Price !== undefined) item.Price = Price;
-        if (description !== undefined) item.description = description;
-        if (imageUrl !== undefined) item.imageUrl = imageUrl;
-        if (isSpecial !== undefined) item.isSpecial = isSpecial;
-
-        await category.save();
-
-        return Response.Success({
-            res,
-            status: 200,
-            message: "Item updated successfully",
-            data: category,
-        });
-    } catch (err) {
-        return Response.Error({
-            res,
-            status: 500,
-            message: "Error updating item",
-            error: err.message,
-        });
-    }
-};
+    };
 module.exports = {
     createCategory,
     addItemToCategory,
