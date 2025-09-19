@@ -2,67 +2,112 @@ const Order = require("../models/order.js");
 const Bill = require("../models/bill.js");
 const Table = require("../models/Table.js");
 const Response = require("../helper/errHandler.js");
-
-/**
- * Create a new order & add to bill
- */
+const MenuItem = require('../models/MenuCategory.js')
+const mongoose = require("mongoose");
+// Pass socket.io instance to this file during initialization
+let ioInstance;
+module.exports.setIO = (io) => {
+    ioInstance = io;
+};
 const createOrder = async (req, res) => {
     try {
-        const { table, items, Price } = req.body;
+        const { table, itemId, quantity, specialInstructions } = req.body;
 
-        if (!table || !items?.length || !Price) {
+        if (!table || !itemId || !quantity) {
             return Response.Error({
                 res,
                 status: 400,
-                message: "table, items, and Price are required",
+                message: "table, itemId, and quantity are required",
             });
         }
 
-        // 1️⃣ Create a new order document
-        const newOrder = new Order({
-            table,
-            items,
-            Price,
-        });
-        await newOrder.save();
+        // Find the menu item
+        const menuItem = (
+            await MenuItem.aggregate([
+                { $unwind: "$items" },
+                { $match: { "items._id": new mongoose.Types.ObjectId(itemId) } },
+                { $replaceRoot: { newRoot: "$items" } }
+            ])
+        )[0];
 
-        // 2️⃣ Find an open bill or create a new one
+        if (!menuItem) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Item not found",
+            });
+        }
+
+        const itemTotal = menuItem.Price * quantity;
+
+        const newOrderItem = {
+            menuItem: menuItem._id,
+            name: menuItem.name,
+            Price: menuItem.Price,
+            quantity,
+            specialInstructions,
+        };
+
+        // ✅ Ensure table exists and set to Occupied
+        const tableDoc = await Table.findById(table);
+        if (!tableDoc) {
+            return Response.Error({ res, status: 404, message: "Table not found" });
+        }
+
+        // Set table status to Occupied if not already
+        if (tableDoc.status !== "Occupied") {
+            tableDoc.status = "Occupied";
+            await tableDoc.save();
+        }
+
+        // ✅ Find or create a Pending order
+        let order = await Order.findOne({ table, status: "Pending" });
+        if (!order) {
+            order = new Order({
+                table,
+                status: "Pending",
+                items: [],
+                Price: 0,
+            });
+        }
+
+        order.items.push(newOrderItem);
+        order.Price += itemTotal;
+        await order.save();
+
+        // ✅ Find or create unpaid bill
         let bill = await Bill.findOne({ table, status: "Unpaid" });
-
-        if (bill) {
-            bill.orders.push(newOrder._id);
-            bill.amount += Price;
-            await bill.save();
-        } else {
+        if (!bill) {
             bill = new Bill({
                 table,
-                orders: [newOrder._id],
-                amount: Price,
+                orders: [],
+                totalAmount: 0,
                 status: "Unpaid",
             });
-            await bill.save();
-
-            // Mark table as occupied if this is the first order
-            await Table.findByIdAndUpdate(table, { status: "Occupied" });
         }
 
-        // 3️⃣ Attach bill reference to the order
-        newOrder.bill = bill._id;
-        await newOrder.save();
+        if (!bill.orders.includes(order._id)) {
+            bill.orders.push(order._id);
+        }
 
+        bill.totalAmount += itemTotal;
+        await bill.save();
+        const populatedBill = await Bill.findById(bill._id).populate({
+            path: 'table',
+            select: 'number' // or 'tableNumber' depending on your schema
+        });
         return Response.Success({
             res,
             status: 201,
-            message: "Order created & added to bill",
-            data: { order: newOrder, bill },
+            message: "Item added to order and bill updated",
+            data: { order, bill: populatedBill },
         });
 
     } catch (err) {
-
         return Response.Error({
             res,
             status: 500,
-            message: "Error creating order",
+            message: "Error adding item to order",
             error: err.message,
         });
     }
@@ -73,16 +118,40 @@ const createOrder = async (req, res) => {
  */
 const getKitchenOrders = async (req, res) => {
     try {
+        // ✅ Fetch unpaid bills with nested orders and related data
         const unpaidBills = await Bill.find({ status: "Unpaid" })
             .populate({
                 path: "orders",
-                populate: { path: "items.menuItem table" }
-            });
+                populate: [
+                    {
+                        path: "items.menuItem",
+                        select: "name Price foodType"
+                    },
+                    {
+                        path: "table",
+                        select: "number"
+                    }
+                ]
+            })
+            .populate("table", "number");
+        // ✅ Extract and flatten all orders from the bills
+        const allOrders = unpaidBills.flatMap(bill => bill.orders.map(order => ({
+            billId: bill.number,
+            tableNumber: bill.table?.number,
+            orderId: order._id,
+            status: order.status,
+            createdAt: order.createdAt,
+            items: order.items.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                Price: item.Price,
+                foodType: item.foodType,
+                specialInstructions: item.specialInstructions
+            }))
+        })));
 
-        const allOrders = unpaidBills.flatMap(bill => bill.orders);
-        const sortedOrders = allOrders.sort(
-            (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-        );
+        // ✅ Sort orders by oldest first
+        const sortedOrders = allOrders.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
         return Response.Success({
             res,
@@ -90,7 +159,6 @@ const getKitchenOrders = async (req, res) => {
             message: "Kitchen orders fetched successfully",
             data: sortedOrders,
         });
-
     } catch (err) {
         console.error("Error fetching kitchen orders:", err);
         return Response.Error({
@@ -202,4 +270,4 @@ const updateOrderStatus = async (req, res) => {
 //     }
 // };
 
-module.exports = { createOrder, getKitchenOrders, updateOrderStatus };
+module.exports = { createOrder, getKitchenOrders, updateOrderStatus, setIO: module.exports.setIO };

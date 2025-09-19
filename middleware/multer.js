@@ -9,7 +9,7 @@ if (!fs.existsSync(imagePath)) fs.mkdirSync(imagePath, { recursive: true });
 
 // Check if file is an image
 const isImage = (mimetype) => mimetype.startsWith("image/");
-
+  
 const IMAGE_MAX = 10 * 1024 * 1024; // 10MB
 
 const storage = multer.diskStorage({

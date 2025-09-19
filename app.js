@@ -1,6 +1,7 @@
 require("dotenv").config()
 const express = require('express')
 const cors = require('cors')
+
 const app = express()
 app.use(cors())
 app.use(express.json())
@@ -8,7 +9,7 @@ const mongodb = require('./database/db')
 mongodb()
 const v1 = require('./routes/v1')
 app.use("/v1", v1)
-
+app.use('/uploads', express.static('uploads'));
 
 
 PORT = process.env.PORT

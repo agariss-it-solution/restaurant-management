@@ -1,11 +1,12 @@
 const MenuCategory = require("../models/MenuCategory.js");
-const Response = require("../helper/errHandler.js"); // ✅ same helper
-
+const Response = require("../helper/errHandler.js");
+const ImgaeUrl = "https://192.168.29.36:1020/uploads/"; // Base URL for images
 // ✅ Create new category with items
 const createCategory = async (req, res) => {
     try {
-        const { category, items } = req.body;
-        if (!category) {
+        const { category, items = [] } = req.body;
+
+        if (!category?.trim()) {
             return Response.Error({
                 res,
                 status: 400,
@@ -35,49 +36,79 @@ const createCategory = async (req, res) => {
 // ✅ Add item to an existing category  
 const addItemToCategory = async (req, res) => {
     try {
+        const { category, items = [] } = req.body;
 
-        const { id } = req.params;
-
-        const { name, Price, description, imageUrl, isSpecial } = req.body;
-        // console.log('req.body', req.body)
-        const category = await MenuCategory.findById(id);
-        if (!category) {
+        if (!category?.trim()) {
             return Response.Error({
                 res,
-                status: 404,
-                message: "Category not found",
+                status: 400,
+                message: "Category name is required",
             });
         }
 
-        category.items.push({ name, Price, description, imageUrl, isSpecial });
-        await category.save();
+        // 🔍 Find category by name
+        let existingCategory = await MenuCategory.findOne({ category });
+
+        if (!existingCategory) {
+            // ✅ Category not found → create new
+            const newCategory = new MenuCategory({
+                category,
+                items,
+            });
+            await newCategory.save();
+
+            return Response.Success({
+                res,
+                status: 201,
+                message: "Category created successfully",
+                data: newCategory,
+            });
+        }
+
+        // ✅ Category found → add items (avoid duplicates)
+        if (items.length > 0) {
+            items.forEach((item) => {
+                const duplicate = existingCategory.items.find(
+                    (i) => i.name.toLowerCase() === item.name.toLowerCase()
+                );
+                if (!duplicate) {
+                    existingCategory.items.push(item);
+                }
+            });
+
+            await existingCategory.save();
+        }
 
         return Response.Success({
             res,
-            status: 201,
-            message: "Item added successfully",
-            data: category,
+            status: 200,
+            message:
+                items.length > 0
+                    ? "Items added to existing category"
+                    : "Category already exists (no new items added)",
+            data: existingCategory,
         });
     } catch (err) {
         return Response.Error({
             res,
             status: 500,
-            message: "Error adding item",
+            message: "Error creating/updating category",
             error: err.message,
         });
     }
 };
 
+
 // ✅ Get all categories with items
 const getAllCategories = async (req, res) => {
     try {
-        const menu = await MenuCategory.find();
+        const menu = await MenuCategory.find().lean(); // Faster read-only fetch
 
         return Response.Success({
             res,
             status: 200,
             message: "Menu fetched successfully",
-            data: menu,
+            data: menu || [],
         });
     } catch (err) {
         return Response.Error({
@@ -93,7 +124,6 @@ const getAllCategories = async (req, res) => {
 const deleteCategory = async (req, res) => {
     try {
         const { id } = req.params;
-
         const deleted = await MenuCategory.findByIdAndDelete(id);
 
         if (!deleted) {
@@ -133,7 +163,6 @@ const deleteItemFromCategory = async (req, res) => {
             });
         }
 
-        // ✅ Use pull() instead of item.remove()
         const item = category.items.id(itemId);
         if (!item) {
             return Response.Error({
@@ -143,7 +172,7 @@ const deleteItemFromCategory = async (req, res) => {
             });
         }
 
-        category.items.pull(itemId); // removes by id
+        category.items.pull(itemId);
         await category.save();
 
         return Response.Success({
@@ -162,59 +191,154 @@ const deleteItemFromCategory = async (req, res) => {
     }
 };
 
-// ✅ Update an item's price (or other fields) inside a category
-    const updateItemInCategory = async (req, res) => {
-        try {
-            const { id, itemId } = req.params;
-            const { name, Price, description, imageUrl, isSpecial } = req.body;
+const updateCategory = async (req, res) => {    
+    try {
+        const { categoryId } = req.params;
+        const { category, items: rawItems = [] } = req.body;
 
-            const category = await MenuCategory.findById(id);
-            if (!category) {
-                return Response.Error({
-                    res,
-                    status: 404,
-                    message: "Category not found",
-                });
-            }
+        const items = typeof rawItems === "string" ? JSON.parse(rawItems) : rawItems;
+        const file = req.file; // multer single file upload places file in req.file, not req.files or req.file.file
 
-            const item = category.items.id(itemId);
-            if (!item) {
-                return Response.Error({
-                    res,
-                    status: 404,
-                    message: "Item not found",
-                });
-            }
-
-            // ✅ Update only the provided fields
-            if (name !== undefined) item.name = name;
-            if (Price !== undefined) item.Price = Price;
-            if (description !== undefined) item.description = description;
-            if (imageUrl !== undefined) item.imageUrl = imageUrl;
-            if (isSpecial !== undefined) item.isSpecial = isSpecial;
-
-            await category.save();
-
-            return Response.Success({
-                res,
-                status: 200,
-                message: "Item updated successfully",
-                data: category,
-            });
-        } catch (err) {
+        const existingCategory = await MenuCategory.findById(categoryId);
+        if (!existingCategory) {
             return Response.Error({
                 res,
-                status: 500,
-                message: "Error updating item",
-                error: err.message,
+                status: 404,
+                message: "Category not found",
             });
         }
-    };
+
+        // Update category name
+        if (category?.trim()) {
+            existingCategory.category = category.trim();
+        }
+
+        // Handle category image
+        const defaultImageUrl = `${req.protocol}://${req.get("host")}/uploads/images/default-category.webp`;
+
+        if (file && file.url) {
+            existingCategory.imageUrl = file.url;  // Use the uploaded file's URL
+        } else {
+            const inputImageUrl = req.body.imageUrl?.trim();
+            existingCategory.imageUrl = inputImageUrl && inputImageUrl !== "" ? inputImageUrl : (existingCategory.imageUrl || defaultImageUrl);
+        }
+
+        // Build a map of existing items by name (lowercased)
+        const existingItemMap = new Map();
+        existingCategory.items.forEach((item) => {
+            existingItemMap.set(item.name.toLowerCase(), item);
+        });
+
+        let itemsAdded = 0;
+        let itemsUpdated = 0;
+
+        // You mentioned itemImages, but your route uses single upload, so no itemImages here.
+        // If you want multiple files for items, you need to handle that differently (upload.array or upload.fields).
+        // For now, just fallback to item.imageUrl.
+        for (let index = 0; index < items.length; index++) {
+            const item = items[index];
+            const itemName = item.name?.trim();
+            if (!itemName) continue;
+
+            const key = itemName.toLowerCase();
+            const existingItem = existingItemMap.get(key);
+
+            const imageUrl = item.imageUrl?.trim() || "";
+
+            if (existingItem) {
+                if (item.price !== undefined) existingItem.Price = item.price;
+                if (item.description !== undefined) existingItem.description = item.description;
+                if (imageUrl) existingItem.imageUrl = imageUrl;
+                if (item.isSpecial !== undefined) existingItem.isSpecial = item.isSpecial;
+                itemsUpdated++;
+            } else {
+                existingCategory.items.push({
+                    name: itemName,
+                    Price: item.price ?? 0,
+                    description: item.description ?? "",
+                    imageUrl,
+                    isSpecial: item.isSpecial ?? false,
+                });
+                itemsAdded++;
+            }
+        }
+
+        await existingCategory.save();
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: `${itemsAdded} item(s) added, ${itemsUpdated} item(s) updated`,
+            data: existingCategory,
+        });
+
+    } catch (err) {
+        console.error("Update category error:", err);
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Error updating category",
+            error: err.message,
+        });
+    }
+};
+
+
+// ✅ Update an item's fields inside a category
+const updateItemInCategory = async (req, res) => {
+    try {
+        const { id, itemId } = req.params;
+        const { name, Price, description, imageUrl, isSpecial } = req.body;
+
+        const category = await MenuCategory.findById(id);
+        if (!category) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Category not found",
+            });
+        }
+
+        const item = category.items.id(itemId);
+        if (!item) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Item not found",
+            });
+        }
+
+        // ✅ Dynamically update only provided fields
+        if (name !== undefined) item.name = name;
+        if (Price !== undefined) item.Price = Price;
+        if (description !== undefined) item.description = description;
+        if (imageUrl !== undefined) item.imageUrl = imageUrl;
+        if (isSpecial !== undefined) item.isSpecial = isSpecial;
+
+        await category.save();
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Item updated successfully",
+            data: category,
+        });
+    } catch (err) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Error updating item",
+            error: err.message,
+        });
+    }
+};
+
 module.exports = {
-    createCategory,
+    // createCategory,
     addItemToCategory,
     getAllCategories,
     deleteCategory,
     deleteItemFromCategory,
     updateItemInCategory,
-}
+    updateCategory
+};
