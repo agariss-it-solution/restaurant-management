@@ -54,6 +54,7 @@ const addItemToCategory = async (req, res) => {
             const newCategory = new MenuCategory({
                 category,
                 items,
+                imageUrl: req.file?.url || `${req.protocol}://${req.get("host")}/uploads/images/default-category.webp`
             });
             await newCategory.save();
 
@@ -191,7 +192,7 @@ const deleteItemFromCategory = async (req, res) => {
     }
 };
 
-const updateCategory = async (req, res) => {    
+const updateCategory = async (req, res) => {
     try {
         const { categoryId } = req.params;
         const { category, items: rawItems = [] } = req.body;
@@ -332,6 +333,68 @@ const updateItemInCategory = async (req, res) => {
         });
     }
 };
+const searchMenuitems = async (req, res) => {
+    try {
+        const { query } = req.query;
+
+        if (!query) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Search query is required",
+            });
+        }
+
+        const suggestions = await MenuCategory.aggregate([
+            { $unwind: "$items" },
+            {
+                $match: {
+                    "items.name": { $regex: query, $options: "i" },
+                },
+            },
+            {
+                $addFields: {
+                    matchScore: {
+                        $indexOfCP: [
+                            { $toLower: "$items.name" },
+                            query.toLowerCase()
+                        ]
+                    }
+                }
+            },
+            {
+                $sort: { matchScore: 1 } // Sort by how early the match is
+            },
+            {
+                $group: {
+                    _id: "$items.name",
+                },
+            },
+            { $limit: 10 },
+            {
+                $project: {
+                    _id: 0,
+                    name: "$_id",
+                },
+            },
+        ]);
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Suggestions fetched successfully",
+            data: suggestions,
+        });
+
+    } catch (err) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Error fetching suggestions",
+            error: err.message,
+        });
+    }
+};
 
 module.exports = {
     // createCategory,
@@ -340,5 +403,6 @@ module.exports = {
     deleteCategory,
     deleteItemFromCategory,
     updateItemInCategory,
-    updateCategory
+    updateCategory,
+    searchMenuitems
 };

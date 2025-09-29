@@ -22,6 +22,7 @@ const orderItemSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  isCancelled: { type: Boolean, default: false } // ✅ Add this
 });
 
 const orderSchema = new mongoose.Schema(
@@ -37,7 +38,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Preparing", "Ready", "Completed"],
+      enum: ["Pending", "Preparing", "Ready", "Completed","Canceled"],
       default: "Pending",
     },
     Price: {
@@ -45,6 +46,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    
     bill: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bill",
