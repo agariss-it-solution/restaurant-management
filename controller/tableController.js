@@ -2,9 +2,10 @@ const Table = require('../models/Table')
 const Response = require("../helper/errHandler");
 
 // ✅ Get all tables
- const getTables = async (req, res) => {
+// ✅ Get all tables (sorted by number)
+const getTables = async (req, res) => {
   try {
-    const tables = await Table.find();
+    const tables = await Table.find().sort({ number: 1 }); // ascending order by number
     return Response.Success({
       res,
       status: 200,
@@ -20,6 +21,7 @@ const Response = require("../helper/errHandler");
     });
   }
 };
+
 
 // ✅ Select (occupy) a table
  const selectTable = async (req, res) => {

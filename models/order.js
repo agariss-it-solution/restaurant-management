@@ -38,7 +38,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Preparing", "Ready", "Completed","Canceled"],
+      enum: ["Pending", "Preparing", "Ready", "Completed", "Canceled"],
       default: "Pending",
     },
     Price: {
@@ -46,7 +46,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    
+
     bill: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bill",

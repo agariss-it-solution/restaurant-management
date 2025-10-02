@@ -8,6 +8,7 @@ const tableController = require("../../controller/tableController");
 const menuController = require("../../controller/menuControlls");
 const getAnalytics = require("../../controller/Analytics/Analytics");
 const ordersendController = require("../../controller/ordersend");
+const updateOrderStatus = require('../../controller/kitcheprocess/updateOrderStatus')
 const { upload, convertToWebp, } = require('../../middleware/multer');
 const settingController = require("../../controller/settings/setting");
 
@@ -55,6 +56,11 @@ app.post("/ordersupdate", ordersendController.updateOrderItemQuantity);
 
 //--------order cancel route------
 app.post("/orders/cancel", ordercancel);
+
+//------ kitchen progress routes-------
+app.post("/kitchen/orders/:id", updateOrderStatus);
+
+
 // ----- Bill Routes -----
 app.post("/bills/:billId", payBill.payBill);
 app.get("/bills/unpaid", payBill.getAllUnpaidBills);

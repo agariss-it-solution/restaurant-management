@@ -477,7 +477,9 @@ const updateOrderItemQuantity = async (req, res) => {
       return Response.Error({ res, status: 404, message: "Order not found" });
     }
 
-    const itemIndex = order.items.findIndex(item => item._id.toString() === itemId);
+    const itemIndex = order.items.findIndex(
+      item => item._id.toString() === itemId
+    );
     if (itemIndex === -1) {
       return Response.Error({
         res,
@@ -493,28 +495,28 @@ const updateOrderItemQuantity = async (req, res) => {
     const quantityDiff = newQuantity - oldQuantity;
     const amountDiff = pricePerUnit * quantityDiff;
 
-    // Update item quantity
+    // Always keep item in order (do not delete)
     item.quantity = newQuantity;
-    if (newQuantity === 0) {
-      item.isCancelled = true;
-    } else {
-      item.isCancelled = false;
-    }
+    item.isCancelled = newQuantity === 0; // mark cancelled instead of remove
 
     // Update order total
     order.Price += amountDiff;
     if (order.Price < 0) order.Price = 0;
 
-    // Update bill
+    // Update related bill
     const bill = await Bill.findOne({ orders: orderId, status: "Unpaid" });
     if (!bill) {
-      return Response.Error({ res, status: 404, message: "Related bill not found" });
+      return Response.Error({
+        res,
+        status: 404,
+        message: "Related bill not found",
+      });
     }
 
     bill.totalAmount += amountDiff;
     if (bill.totalAmount < 0) bill.totalAmount = 0;
 
-    // Auto-cancel order if all items cancelled/zero
+    // Auto-cancel order if all items are cancelled
     const allCancelled = order.items.every(i => i.quantity === 0 || i.isCancelled);
     if (allCancelled) {
       order.status = "Canceled";
@@ -529,7 +531,11 @@ const updateOrderItemQuantity = async (req, res) => {
       res,
       status: 200,
       message: "Item quantity updated successfully",
-      data: { order, bill },
+      data: {
+        order,
+        bill,
+        removedItems: order.items.filter(i => i.isCancelled), // <-- list of removed items
+      },
     });
 
   } catch (err) {
@@ -542,6 +548,7 @@ const updateOrderItemQuantity = async (req, res) => {
     });
   }
 };
+    
 
 
 module.exports = { createOrder, getKitchenOrders, updateOrderStatus, getOrderHistory, deleteOrderHistory ,updateOrderItemQuantity};

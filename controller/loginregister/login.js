@@ -39,7 +39,8 @@ const login = async (req, res) => {
         // Generate JWT token
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
-            JWT_SECRET
+            JWT_SECRET,
+            
         );
 
         return Response.Success({
@@ -97,12 +98,11 @@ const sendResetPasswordEmail = async (req, res) => {
         // Generate a JWT token with email and expiry time (30 minutes)
         const token = jwt.sign(
             { email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: "30m" }
+            process.env.JWT_SECRET
         );
-console.log('token', token)
+
         // Build reset link
-        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${email}`;
+        const resetLink = `${process.env.FRONTEND_URL}/?token=${token}&email=${email}`;
 
         // Email body template with a professional look
         const emailBody = `
