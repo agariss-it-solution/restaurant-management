@@ -25,7 +25,6 @@ const login = async (req, res) => {
                 message: "Invalid email or password",
             });
         }
-
         // Compare password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
@@ -35,14 +34,12 @@ const login = async (req, res) => {
                 message: "Invalid email or password",
             });
         }
-
         // Generate JWT token
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
-            JWT_SECRET,
-            
+            JWT_SECRET
+            // { expiresIn: "1D" }
         );
-
         return Response.Success({
             res,
             status: 200,
@@ -59,14 +56,8 @@ const login = async (req, res) => {
     }
 };
 
-
-
 const logout = async (req, res) => {
     try {
-        // If using cookies to store token, clear it
-        // res.clearCookie("token");
-
-        // If using Authorization header, just inform client to delete it locally
         return Response.Success({
             res,
             status: 200,
@@ -87,18 +78,28 @@ const sendResetPasswordEmail = async (req, res) => {
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({ message: "Email is required" });
+            // return res.status(400).json({ message: "Email is required" });
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Email is required",
+            });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return Response.Error({
+                res,
+                status: 404,
+                message: "User not found",
+            });
         }
 
-        // Generate a JWT token with email and expiry time (30 minutes)
+        // Generate a JWT token with email and expiry time (5 minutes)
         const token = jwt.sign(
             { email: user.email },
-            process.env.JWT_SECRET
+            process.env.JWT_SECRET,
+            { expiresIn: "1m" }
         );
 
         // Build reset link
@@ -161,39 +162,68 @@ const sendResetPasswordEmail = async (req, res) => {
 
         // Send the reset link email
         await sendEmail({
-            to: user.email,
+            to: process.env.EMAIL_USER,
             subject: "Reset Your Password",
             html: emailBody,
         });
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Reset password email sent successfully",
+            data: resetLink,
+        });
 
-        res.status(200).json({ message: "Reset password email sent successfully", data: resetLink });
     } catch (error) {
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+
     }
 };
-
 
 const resetPassword = async (req, res) => {
     try {
         const { email, token, newPassword } = req.body;
 
         if (!email || !newPassword || !token) {
-            return res.status(400).json({ message: "Email, new password, and token are required" });
+            // return res.status(400).json({ message: "Email, new password, and token are required" });
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Email, new password, and token are required",
+            });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return Response.Error({
+                res,
+                status: 404,
+                message: "User not found",
+            });
         }
 
         // Verify the token
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (decoded.email !== email) {
-                return res.status(400).json({ message: "Invalid token" });
+                // return res.status(400).json({ message: "Invalid token" });
+                return Response.Error({
+                    res,
+                    status: 400,
+                    message: "Invalid token",
+                });
             }
         } catch (error) {
-            return res.status(400).json({ message: "Invalid or expired token" });
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Invalid or expired token",
+                error: error.message,
+            });
         }
 
         // Hash the new password
@@ -205,11 +235,23 @@ const resetPassword = async (req, res) => {
         user.resetTokenExpiry = undefined;
 
         await user.save();
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Password reset successfully",
+            data: null,
+        });
 
-        res.status(200).json({ message: "Password reset successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
     }
 };
 
-module.exports = { login, logout,sendResetPasswordEmail , resetPassword };
+
+
+module.exports = { login, logout, sendResetPasswordEmail, resetPassword };  

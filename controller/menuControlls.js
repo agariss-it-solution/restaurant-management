@@ -1,37 +1,37 @@
 const MenuCategory = require("../models/MenuCategory.js");
 const Response = require("../helper/errHandler.js");
-const ImgaeUrl = "https://192.168.29.36:1020/uploads/"; // Base URL for images
+
 // ✅ Create new category with items
-const createCategory = async (req, res) => {
-    try {
-        const { category, items = [] } = req.body;
+// const createCategory = async (req, res) => {
+//     try {
+//         const { category, items = [] } = req.body;
 
-        if (!category?.trim()) {
-            return Response.Error({
-                res,
-                status: 400,
-                message: "Category name is required",
-            });
-        }
+//         if (!category?.trim()) {
+//             return Response.Error({
+//                 res,
+//                 status: 400,
+//                 message: "Category name is required",
+//             });
+//         }
 
-        const newCategory = new MenuCategory({ category, items });
-        await newCategory.save();
+//         const newCategory = new MenuCategory({ category, items });
+//         await newCategory.save();
 
-        return Response.Success({
-            res,
-            status: 201,
-            message: "Category created successfully",
-            data: newCategory,
-        });
-    } catch (err) {
-        return Response.Error({
-            res,
-            status: 500,
-            message: "Error creating category",
-            error: err.message,
-        });
-    }
-};
+//         return Response.Success({
+//             res,
+//             status: 201,
+//             message: "Category created successfully",
+//             data: newCategory,
+//         });
+//     } catch (err) {
+//         return Response.Error({
+//             res,
+//             status: 500,
+//             message: "Error creating category",
+//             error: err.message,
+//         });
+//     }
+// };
 
 // ✅ Add item to an existing category  
 const addItemToCategory = async (req, res) => {
@@ -46,15 +46,26 @@ const addItemToCategory = async (req, res) => {
             });
         }
 
+
         // 🔍 Find category by name
         let existingCategory = await MenuCategory.findOne({ category });
 
+        const file = req.file;
+
+        if (!file) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Image is required",
+            });
+        }
+        const imageUrl = `${process.env.BaseUrl}${file.filename}`;
         if (!existingCategory) {
             // ✅ Category not found → create new
             const newCategory = new MenuCategory({
                 category,
                 items,
-                imageUrl: req.file?.url || `${req.protocol}://${req.get("host")}/uploads/images/default-category.webp`
+                imageUrl: imageUrl
             });
             await newCategory.save();
 
@@ -198,7 +209,7 @@ const updateCategory = async (req, res) => {
         const { category, items: rawItems = [] } = req.body;
 
         const items = typeof rawItems === "string" ? JSON.parse(rawItems) : rawItems;
-        const file = req.file; // multer single file upload places file in req.file, not req.files or req.file.file
+        const file = req.file;
 
         const existingCategory = await MenuCategory.findById(categoryId);
         if (!existingCategory) {
@@ -213,9 +224,15 @@ const updateCategory = async (req, res) => {
         if (category?.trim()) {
             existingCategory.category = category.trim();
         }
-
+        if (!file) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Image is required",
+            });
+        }       
         // Handle category image
-        const defaultImageUrl = `${req.protocol}://${req.get("host")}/uploads/images/default-category.webp`;
+        const defaultImageUrl = `${process.env.BaseUrl}${file.filename}`;
 
         if (file && file.url) {
             existingCategory.imageUrl = file.url;  // Use the uploaded file's URL

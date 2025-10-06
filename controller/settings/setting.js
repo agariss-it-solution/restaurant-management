@@ -1,6 +1,6 @@
 const Setting = require('../../models/setting');
 const Response = require('../../helper/errHandler');
-const imageUrl = "http://192.168.29.36:1020/uploads/images/";
+// const imageUrl = "http://192.168.29.36:1020/uploads/images/";
 
 // ✅ Create Setting
 const createSetting = async (req, res) => {
@@ -22,8 +22,9 @@ const createSetting = async (req, res) => {
       });
     }
 
+     const file = req.file;
     // ✅ If a file is uploaded, construct its URL
-    const filePath = req.file ? imageUrl + req.file.filename : null;
+    const filePath =  `${process.env.BaseUrl}${file.filename}`;
 
     // ✅ Find if setting already exists (singleton pattern)
     let setting = await Setting.findOne();
