@@ -74,7 +74,10 @@ app.get("/analyticsfilter", getAnalyticsfilter);
 
 
 //----- Settings Routes -----
-app.post("/settings", upload.single('qr'), convertToWebp, settingController.createSetting);
+app.post("/settings", upload.fields([
+    { name: 'qr', maxCount: 1 },
+    { name: 'logo', maxCount: 1 }
+]), convertToWebp, settingController.createSetting);
 app.get("/settings", settingController.getAllSettings);
 // app.get("/settings/:id", settingController.getSettingById);
 // app.put("/settings/:id", upload.single('file'), convertToWebp, settingController.updateSetting);

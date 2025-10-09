@@ -197,7 +197,7 @@ const createOrder = async (req, res) => {
                 totalAmount: 0,
                 status: "Unpaid",
             });
-            console.log('bill', bill)
+            // console.log('bill', bill)
         } else {
             // ✅ Ensure tableNumber is present even if it's an old bill without it
             if (!bill.tableNumber) {

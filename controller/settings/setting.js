@@ -1,7 +1,5 @@
 const Setting = require('../../models/setting');
 const Response = require('../../helper/errHandler');
-// const imageUrl = "http://192.168.29.36:1020/uploads/images/";
-
 const createSetting = async (req, res) => {
   try {
     const {
@@ -21,13 +19,17 @@ const createSetting = async (req, res) => {
       });
     }
 
-    const file = req.file;
-    let filePath;
+    // ✅ Handle files (qr and logo)
+    const qrFile = req.files?.qr?.[0];
+    const logoFile = req.files?.logo?.[0];
 
-    // ✅ Only construct file path if a file is uploaded
-    if (file && file.filename) {
-      filePath = `${process.env.BaseUrl}${file.filename}`;
-    }
+    const qr = qrFile?.filename
+      ? `${process.env.BaseUrl}${qrFile.filename}`
+      : undefined;
+
+    const logo = logoFile?.filename
+      ? `${process.env.BaseUrl}${logoFile.filename}`
+      : undefined;
 
     // ✅ Check if a Setting document already exists
     let setting = await Setting.findOne();
@@ -40,7 +42,8 @@ const createSetting = async (req, res) => {
         address,
         email,
         thankYouMessage,
-        ...(filePath && { qr: filePath }) // only add 'qr' if filePath exists
+        ...(qr && { qr }),
+        ...(logo && { logo })
       });
 
       await setting.save();
@@ -59,8 +62,12 @@ const createSetting = async (req, res) => {
       setting.email = email;
       setting.thankYouMessage = thankYouMessage;
 
-      if (filePath) {
-        setting.qr = filePath; // only update 'qr' if new file uploaded
+      if (qr) {
+        setting.qr = qr;
+      }
+
+      if (logo) {
+        setting.logo = logo;
       }
 
       await setting.save();
@@ -95,7 +102,7 @@ const getAllSettings = async (req, res) => {
   }
 };
 
-// // ✅ Get Single Setting by ID
+// //  Get Single Setting by ID
 // const getSettingById = async (req, res) => {
 //   try {
 //     const setting = await Setting.findById(req.params.id);
@@ -108,7 +115,7 @@ const getAllSettings = async (req, res) => {
 //   }
 // };
 
-// // ✅ Update Setting
+// //  Update Setting
 // const updateSetting = async (req, res) => {
 //   try {
 //     const data = req.body;
@@ -132,7 +139,7 @@ const getAllSettings = async (req, res) => {
 //   }
 // };
 
-// // ✅ Delete Setting
+// //  Delete Setting
 // const deleteSetting = async (req, res) => {
 //   try {
 //     const deleted = await Setting.findByIdAndDelete(req.params.id);

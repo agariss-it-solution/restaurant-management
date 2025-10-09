@@ -173,7 +173,7 @@ const getAllBills = async (req, res) => {
                 select: "items status totalPrice"
             });
 
-            console.log('bills', bills)
+            // console.log('bills', bills)
         return Response.Success({
             res,
             status: 200,
