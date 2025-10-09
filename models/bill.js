@@ -8,15 +8,18 @@ const billSchema = new mongoose.Schema({
         required: true,
         default: 0,
     },
-    status: { type: String, enum: ["Unpaid", "Paid","Canceled"], default: "Unpaid" },
-    paymentMethod: { 
-        type: String, 
-        enum: ["online", "cash"], // Add all payment methods you support
-        default: "cash" // or default to null if not paid yet
+    status: { type: String, enum: ["Unpaid", "Paid", "Canceled"], default: "Unpaid" },
+    paymentMethod: {
+        type: String,
+        enum: ["online", "cash"],
+        default: "cash"
+    },
+    tableNumber: {
+        type: Number, // Save the table number here as a backup
     },
     createdAt: { type: Date, default: Date.now }
-},{
-    timestamps: true // ✅ Automatically adds createdAt and updatedAt
+}, {
+    timestamps: true
 });
 
 module.exports = mongoose.model("Bill", billSchema);

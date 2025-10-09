@@ -186,16 +186,23 @@ const createOrder = async (req, res) => {
         });
 
         await newOrder.save();
-
-        // Find or create unpaid bill for this table
         let bill = await Bill.findOne({ table, status: "Unpaid" });
+
         if (!bill) {
+            // Create a new bill
             bill = new Bill({
                 table,
+                tableNumber: table.Number, // ✅ Save tableNumber at creation
                 orders: [],
                 totalAmount: 0,
                 status: "Unpaid",
             });
+            console.log('bill', bill)
+        } else {
+            // ✅ Ensure tableNumber is present even if it's an old bill without it
+            if (!bill.tableNumber) {
+                bill.tableNumber = table.number;
+            }
         }
 
         // Add new order to bill if not already added
@@ -209,9 +216,8 @@ const createOrder = async (req, res) => {
         // Populate bill with table info
         const populatedBill = await Bill.findById(bill._id).populate({
             path: "table",
-            select: "number", // or your table number field
+            select: "number",
         });
-
         return Response.Success({
             res,
             status: 201,
@@ -289,64 +295,63 @@ const getKitchenOrders = async (req, res) => {
     }
 };
 
-
 /**
  * Update order status
  */
-  const updateOrderStatus = async (req, res) => {
-        try {
-            const { id } = req.params;
-            const { status } = req.body;
+const updateOrderStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
 
-            if (!["Pending", "Preparing", "Ready", "Completed"].includes(status)) {
-                return Response.Error({
-                    res,
-                    status: 400,
-                    message: "Invalid status",
-                });
-            }
-
-            // 1️⃣ Update order status
-            const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).populate("bill");
-            if (!order) {
-                return Response.Error({
-                    res,
-                    status: 404,
-                    message: "Order not found",
-                });
-            }
-
-            // 2️⃣ If order completed, make sure bill is updated
-            if (status === "Completed" && order.bill) {
-                const bill = await Bill.findById(order.bill._id);
-
-                if (bill) {
-                    const alreadyAdded = bill.orders.some(oId => oId.toString() === order._id.toString());
-                    if (!alreadyAdded) {
-                        bill.orders.push(order._id);
-                        bill.amount += order.Price;
-                        await bill.save();
-                    }
-                }
-            }
-
-            return Response.Success({
-                res,
-                status: 200,
-                message: "Order status updated",
-                data: order,
-            });
-
-        } catch (err) {
-            console.error("Error updating order status:", err);
+        if (!["Pending", "Preparing", "Ready", "Completed"].includes(status)) {
             return Response.Error({
                 res,
-                status: 500,
-                message: "Error updating order status",
-                error: err.message,
+                status: 400,
+                message: "Invalid status",
             });
         }
-    };
+
+        // 1️⃣ Update order status
+        const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).populate("bill");
+        if (!order) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Order not found",
+            });
+        }
+
+        // 2️⃣ If order completed, make sure bill is updated
+        if (status === "Completed" && order.bill) {
+            const bill = await Bill.findById(order.bill._id);
+
+            if (bill) {
+                const alreadyAdded = bill.orders.some(oId => oId.toString() === order._id.toString());
+                if (!alreadyAdded) {
+                    bill.orders.push(order._id);
+                    bill.amount += order.Price;
+                    await bill.save();
+                }
+            }
+        }
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Order status updated",
+            data: order,
+        });
+
+    } catch (err) {
+        console.error("Error updating order status:", err);
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Error updating order status",
+            error: err.message,
+        });
+    }
+};
 const getOrderHistory = async (req, res) => {
     try {
         // Step 1: Get all Paid bills
@@ -461,94 +466,94 @@ const deleteOrderHistory = async (req, res) => {
 
 
 const updateOrderItemQuantity = async (req, res) => {
-  try {
-    const { orderId, itemId, newQuantity } = req.body;
+    try {
+        const { orderId, itemId, newQuantity } = req.body;
 
-    if (!orderId || !itemId || typeof newQuantity !== "number") {
-      return Response.Error({
-        res,
-        status: 400,
-        message: "orderId, itemId, and newQuantity are required",
-      });
+        if (!orderId || !itemId || typeof newQuantity !== "number") {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "orderId, itemId, and newQuantity are required",
+            });
+        }
+
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return Response.Error({ res, status: 404, message: "Order not found" });
+        }
+
+        const itemIndex = order.items.findIndex(
+            item => item._id.toString() === itemId
+        );
+        if (itemIndex === -1) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Item not found in order",
+            });
+        }
+
+        const item = order.items[itemIndex];
+
+        const oldQuantity = item.quantity;
+        const pricePerUnit = item.Price;
+        const quantityDiff = newQuantity - oldQuantity;
+        const amountDiff = pricePerUnit * quantityDiff;
+
+        // Always keep item in order (do not delete)
+        item.quantity = newQuantity;
+        item.isCancelled = newQuantity === 0; // mark cancelled instead of remove
+
+        // Update order total
+        order.Price += amountDiff;
+        if (order.Price < 0) order.Price = 0;
+
+        // Update related bill
+        const bill = await Bill.findOne({ orders: orderId, status: "Unpaid" });
+        if (!bill) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "Related bill not found",
+            });
+        }
+
+        bill.totalAmount += amountDiff;
+        if (bill.totalAmount < 0) bill.totalAmount = 0;
+
+        // Auto-cancel order if all items are cancelled
+        const allCancelled = order.items.every(i => i.quantity === 0 || i.isCancelled);
+        if (allCancelled) {
+            order.status = "Canceled";
+        } else if (order.status === "Canceled") {
+            order.status = "Pending";
+        }
+
+        await order.save();
+        await bill.save();
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Item quantity updated successfully",
+            data: {
+                order,
+                bill,
+                removedItems: order.items.filter(i => i.isCancelled), // <-- list of removed items
+            },
+        });
+
+    } catch (err) {
+        console.error("Update Order Item Quantity Error:", err);
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Failed to update order item quantity",
+            error: err.message,
+        });
     }
-
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return Response.Error({ res, status: 404, message: "Order not found" });
-    }
-
-    const itemIndex = order.items.findIndex(
-      item => item._id.toString() === itemId
-    );
-    if (itemIndex === -1) {
-      return Response.Error({
-        res,
-        status: 404,
-        message: "Item not found in order",
-      });
-    }
-
-    const item = order.items[itemIndex];
-
-    const oldQuantity = item.quantity;
-    const pricePerUnit = item.Price;
-    const quantityDiff = newQuantity - oldQuantity;
-    const amountDiff = pricePerUnit * quantityDiff;
-
-    // Always keep item in order (do not delete)
-    item.quantity = newQuantity;
-    item.isCancelled = newQuantity === 0; // mark cancelled instead of remove
-
-    // Update order total
-    order.Price += amountDiff;
-    if (order.Price < 0) order.Price = 0;
-
-    // Update related bill
-    const bill = await Bill.findOne({ orders: orderId, status: "Unpaid" });
-    if (!bill) {
-      return Response.Error({
-        res,
-        status: 404,
-        message: "Related bill not found",
-      });
-    }
-
-    bill.totalAmount += amountDiff;
-    if (bill.totalAmount < 0) bill.totalAmount = 0;
-
-    // Auto-cancel order if all items are cancelled
-    const allCancelled = order.items.every(i => i.quantity === 0 || i.isCancelled);
-    if (allCancelled) {
-      order.status = "Canceled";
-    } else if (order.status === "Canceled") {
-      order.status = "Pending";
-    }
-
-    await order.save();
-    await bill.save();
-
-    return Response.Success({
-      res,
-      status: 200,
-      message: "Item quantity updated successfully",
-      data: {
-        order,
-        bill,
-        removedItems: order.items.filter(i => i.isCancelled), // <-- list of removed items
-      },
-    });
-
-  } catch (err) {
-    console.error("Update Order Item Quantity Error:", err);
-    return Response.Error({
-      res,
-      status: 500,
-      message: "Failed to update order item quantity",
-      error: err.message,
-    });
-  }
 };
-    
 
 
-module.exports = { createOrder, getKitchenOrders, updateOrderStatus, getOrderHistory, deleteOrderHistory ,updateOrderItemQuantity};
+
+module.exports = { createOrder, getKitchenOrders, updateOrderStatus, getOrderHistory, deleteOrderHistory, updateOrderItemQuantity };

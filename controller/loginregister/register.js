@@ -17,7 +17,6 @@ const register = async (req, res) => {
             });
         }
 
-        // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return Response.Error({
@@ -27,10 +26,8 @@ const register = async (req, res) => {
             });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Create new user
         const newUser = new User({
             email,
             password: hashedPassword,
@@ -46,7 +43,6 @@ const register = async (req, res) => {
             data: { email: newUser.email, role: newUser.role },
         });
     } catch (error) {
-        // console.error("Register Error:", error);
         return Response.Error({
             res,
             status: 500,

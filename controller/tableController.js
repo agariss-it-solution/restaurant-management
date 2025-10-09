@@ -1,8 +1,8 @@
 const Table = require('../models/Table')
 const Response = require("../helper/errHandler");
 
-// ✅ Get all tables
-// ✅ Get all tables (sorted by number)
+// Get all tables
+
 const getTables = async (req, res) => {
   try {
     const tables = await Table.find().sort({ number: 1 }); // ascending order by number
@@ -23,7 +23,7 @@ const getTables = async (req, res) => {
 };
 
 
-// ✅ Select (occupy) a table
+// Select (occupy) a table
  const selectTable = async (req, res) => {
   try {
     const { id } = req.params;
@@ -55,7 +55,7 @@ const getTables = async (req, res) => {
   }
 };
 
-// ✅ Create Table
+//  Create Table
 const createTable = async (req, res) => {
   try {
     const table = new Table(); // no number, no status needed
@@ -77,7 +77,7 @@ const createTable = async (req, res) => {
   }
 };
 
-// ✅ Delete Table
+//  Delete Table
  const deleteTable = async (req, res) => {
   try {
     const { id } = req.params;

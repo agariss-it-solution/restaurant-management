@@ -12,7 +12,6 @@ const v1 = require('./routes/v1')
 app.use("/v1", v1)
 app.use('/uploads', express.static('uploads'));
 
-
 PORT = process.env.PORT
 app.listen(PORT, () => {
     console.log(`server start  PORT ${PORT}`);

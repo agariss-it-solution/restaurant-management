@@ -46,26 +46,23 @@ const addItemToCategory = async (req, res) => {
             });
         }
 
-
         // 🔍 Find category by name
         let existingCategory = await MenuCategory.findOne({ category });
 
         const file = req.file;
 
-        if (!file) {
-            return Response.Error({
-                res,
-                status: 400,
-                message: "Image is required",
-            });
+        // If image is uploaded, set the image URL
+        let imageUrl = null;
+        if (file) {
+            imageUrl = `${process.env.BaseUrl}${file.filename}`;
         }
-        const imageUrl = `${process.env.BaseUrl}${file.filename}`;
+
+        // If category does not exist, create a new one
         if (!existingCategory) {
-            // ✅ Category not found → create new
             const newCategory = new MenuCategory({
                 category,
                 items,
-                imageUrl: imageUrl
+                imageUrl: imageUrl || "", // Default to an empty string if no image
             });
             await newCategory.save();
 
@@ -77,7 +74,7 @@ const addItemToCategory = async (req, res) => {
             });
         }
 
-        // ✅ Category found → add items (avoid duplicates)
+        // ✅ Category exists → add items (avoid duplicates)
         if (items.length > 0) {
             items.forEach((item) => {
                 const duplicate = existingCategory.items.find(
@@ -109,6 +106,7 @@ const addItemToCategory = async (req, res) => {
         });
     }
 };
+
 
 
 // ✅ Get all categories with items
@@ -380,7 +378,7 @@ const searchMenuitems = async (req, res) => {
                 }
             },
             {
-                $sort: { matchScore: 1 } // Sort by how early the match is
+                $sort: { matchScore: 1 } 
             },
             {
                 $group: {

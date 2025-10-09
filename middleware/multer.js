@@ -15,7 +15,7 @@ const IMAGE_MAX = 10 * 1024 * 1024; // 10MB
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (isImage(file.mimetype)) cb(null, imagePath);
-    else cb(new Error("Unsupported file type"), false); // No video handling now
+    else cb(new Error("Unsupported file type"), false); 
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
@@ -31,7 +31,7 @@ const fileFilter = (req, file, cb) => {
     return cb(new Error("Only image files are allowed"), false);
   }
 
-  // Size check (via Content-Length workaround)
+ 
   req.on("data", (chunk) => {
     file._receivedSize = (file._receivedSize || 0) + chunk.length;
     if (file._receivedSize > IMAGE_MAX) {

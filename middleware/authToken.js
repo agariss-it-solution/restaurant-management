@@ -17,7 +17,7 @@ const authMiddleware = (req, res, next) => {
         const token = authHeader.split(" ")[1];
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        req.user = decoded; // Attach user info (id, email, role)
+        req.user = decoded;
         next();
     } catch (err) {
         return Response.Error({

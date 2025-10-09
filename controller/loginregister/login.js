@@ -8,7 +8,7 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Validate input
+      
         if (!email || !password) {
             return Response.Error({
                 res,
@@ -16,8 +16,9 @@ const login = async (req, res) => {
                 message: "Email and password are required",
             });
         }
-        // Find user
-        const user = await User.findOne({ email: email });
+
+    
+        const user = await User.findOne({ email });
         if (!user) {
             return Response.Error({
                 res,
@@ -25,7 +26,8 @@ const login = async (req, res) => {
                 message: "Invalid email or password",
             });
         }
-        // Compare password
+
+
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return Response.Error({
@@ -34,17 +36,28 @@ const login = async (req, res) => {
                 message: "Invalid email or password",
             });
         }
-        // Generate JWT token
+
+      
+        const expiresIn = "30d";
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
-            JWT_SECRET
-            // { expiresIn: "1D" }
+            JWT_SECRET,
+            //   { expiresIn }
         );
+
+      
+        const decoded = jwt.decode(token);
+
         return Response.Success({
             res,
             status: 200,
             message: "Login successful",
-            data: { token, email: user.email, role: user.role },
+            data: {
+                token,
+                email: user.email,
+                role: user.role,
+                expiresAt: decoded.exp * 1000, // send as timestamp in ms
+            },
         });
     } catch (error) {
         return Response.Error({
@@ -58,6 +71,7 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
     try {
+
         return Response.Success({
             res,
             status: 200,
@@ -73,12 +87,13 @@ const logout = async (req, res) => {
         });
     }
 };
+
 const sendResetPasswordEmail = async (req, res) => {
     try {
         const { email } = req.body;
 
         if (!email) {
-            // return res.status(400).json({ message: "Email is required" });
+      
             return Response.Error({
                 res,
                 status: 400,
@@ -95,17 +110,17 @@ const sendResetPasswordEmail = async (req, res) => {
             });
         }
 
-        // Generate a JWT token with email and expiry time (5 minutes)
+      
         const token = jwt.sign(
             { email: user.email },
             process.env.JWT_SECRET,
-            { expiresIn: "1m" }
+            { expiresIn: "5m" }
         );
 
         // Build reset link
         const resetLink = `${process.env.FRONTEND_URL}/?token=${token}&email=${email}`;
 
-        // Email body template with a professional look
+    
         const emailBody = `
             <html>
                 <head>
@@ -149,7 +164,7 @@ const sendResetPasswordEmail = async (req, res) => {
                         <h1>Password Reset Request</h1>
                         <p>Hello,</p>
                         <p>We received a request to reset the password for your account at <strong>${process.env.WEBSITE_NAME || 'Our Website'}</strong>.</p>
-                        <p>Please click the link below to reset your password. This link will expire in 30 minutes:</p>
+                        <p>Please click the link below to reset your password. This link will expire in 5 minutes:</p>
                         <p><a href="${resetLink}">${resetLink}</a></p>
                         <p>If you did not request a password reset, please ignore this email or contact support if you have any concerns.</p>
                         <div class="footer">
@@ -160,7 +175,7 @@ const sendResetPasswordEmail = async (req, res) => {
             </html>
         `;
 
-        // Send the reset link email
+      
         await sendEmail({
             to: process.env.EMAIL_USER,
             subject: "Reset Your Password",
@@ -189,7 +204,6 @@ const resetPassword = async (req, res) => {
         const { email, token, newPassword } = req.body;
 
         if (!email || !newPassword || !token) {
-            // return res.status(400).json({ message: "Email, new password, and token are required" });
             return Response.Error({
                 res,
                 status: 400,
@@ -210,7 +224,6 @@ const resetPassword = async (req, res) => {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (decoded.email !== email) {
-                // return res.status(400).json({ message: "Invalid token" });
                 return Response.Error({
                     res,
                     status: 400,

@@ -2,7 +2,6 @@ const Setting = require('../../models/setting');
 const Response = require('../../helper/errHandler');
 // const imageUrl = "http://192.168.29.36:1020/uploads/images/";
 
-// ✅ Create Setting
 const createSetting = async (req, res) => {
   try {
     const {
@@ -22,11 +21,15 @@ const createSetting = async (req, res) => {
       });
     }
 
-     const file = req.file;
-    // ✅ If a file is uploaded, construct its URL
-    const filePath =  `${process.env.BaseUrl}${file.filename}`;
+    const file = req.file;
+    let filePath;
 
-    // ✅ Find if setting already exists (singleton pattern)
+    // ✅ Only construct file path if a file is uploaded
+    if (file && file.filename) {
+      filePath = `${process.env.BaseUrl}${file.filename}`;
+    }
+
+    // ✅ Check if a Setting document already exists
     let setting = await Setting.findOne();
 
     if (!setting) {
@@ -37,7 +40,7 @@ const createSetting = async (req, res) => {
         address,
         email,
         thankYouMessage,
-        qr: filePath,
+        ...(filePath && { qr: filePath }) // only add 'qr' if filePath exists
       });
 
       await setting.save();
@@ -57,7 +60,7 @@ const createSetting = async (req, res) => {
       setting.thankYouMessage = thankYouMessage;
 
       if (filePath) {
-        setting.qr = filePath; // only update if new file uploaded
+        setting.qr = filePath; // only update 'qr' if new file uploaded
       }
 
       await setting.save();
@@ -82,7 +85,7 @@ const createSetting = async (req, res) => {
 };
 
 
-// ✅ Get All Settings
+
 const getAllSettings = async (req, res) => {
   try {
     const settings = await Setting.find().sort({ createdAt: -1 });

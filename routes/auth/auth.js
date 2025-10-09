@@ -7,6 +7,7 @@ const authtoken = require("../../middleware/authToken");
 const tableController = require("../../controller/tableController");
 const menuController = require("../../controller/menuControlls");
 const getAnalytics = require("../../controller/Analytics/Analytics");
+const getAnalyticsfilter = require("../../controller/Analytics/monthly&yearly");
 const ordersendController = require("../../controller/ordersend");
 const updateOrderStatus = require('../../controller/kitcheprocess/updateOrderStatus')
 const { upload, convertToWebp, } = require('../../middleware/multer');
@@ -69,6 +70,7 @@ app.get("/bills/:billId", payBill.getBill);
 
 //----- Analytics -----
 app.get("/analytics", getAnalytics);
+app.get("/analyticsfilter", getAnalyticsfilter);
 
 
 //----- Settings Routes -----

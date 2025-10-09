@@ -18,15 +18,13 @@ const transporter = nodemailer.createTransport({
 const sendEmail = async ({ to, subject, html }) => {
     try {
         const mailOptions = {
-            from: process.env.EMAIL_USER,  // sender address
-            to,                            // recipient address
-            subject,                       // subject line
-            html,                          // html body
+            from: process.env.EMAIL_USER, 
+            to,                           
+            subject,                      
+            html,                        
         };
 
-        // Send the email
         const info = await transporter.sendMail(mailOptions);
-        // console.log("Email sent: " + info.response);
         return info;
     } catch (error) {
         console.error("Error sending email: ", error);

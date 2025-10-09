@@ -4,80 +4,86 @@ const Table = require("../../models/Table.js");
 const Response = require("../../helper/errHandler.js");
 
 const payBill = async (req, res) => {
-    try {
-        const { billId } = req.params;
-        const { paymentMethod } = req.body;
+  try {
+    const { billId } = req.params;
+    const { paymentMethod } = req.body;
 
-        // Validate payment method
-        const validMethods = ["online", "cash"];
-        if (!paymentMethod || !validMethods.includes(paymentMethod)) {
-            return Response.Error({
-                res,
-                status: 400,
-                message: `Invalid or missing paymentMethod. Allowed values: ${validMethods.join(", ")}`,
-            });
-        }
-
-        const bill = await Bill.findById(billId).populate({
-            path: "table",
-            select: "number"
-        });
-
-        if (!bill) {
-            return Response.Error({
-                res,
-                status: 404,
-                message: "Bill not found",
-            });
-        }
-
-        if (bill.status === "Paid") {
-            return Response.Error({
-                res,
-                status: 400,
-                message: "Bill already paid",
-            });
-        }
-
-        // ⛔ Prevent paying if total is 0
-        if (bill.totalAmount <= 0) {
-            return Response.Error({
-                res,
-                status: 400,
-                message: "Cannot pay a bill with total amount 0. All items might be canceled.",
-            });
-        }
-
-        // Update bill payment status and method
-        bill.status = "Paid";
-        bill.paymentMethod = paymentMethod;
-        await bill.save();
-
-        // Free the table
-        await Table.findByIdAndUpdate(bill.table._id, { status: "Available" });
-
-        // Mark all orders in this bill as Completed
-        await Order.updateMany(
-            { _id: { $in: bill.orders } },
-            { $set: { status: "Completed" } }
-        );
-
-        return Response.Success({
-            res,
-            status: 200,
-            message: "Bill paid, orders completed & table is available",
-            data: bill,
-        });
-
-    } catch (err) {
-        return Response.Error({
-            res,
-            status: 500,
-            message: "Error processing payment",
-            error: err.message,
-        });
+    // Validate payment method
+    const validMethods = ["online", "cash"];
+    if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+      return Response.Error({
+        res,
+        status: 400,
+        message: `Invalid or missing paymentMethod. Allowed values: ${validMethods.join(", ")}`,
+      });
     }
+
+    const bill = await Bill.findById(billId).populate({
+      path: "table",
+      select: "number"
+    });
+
+    if (!bill) {
+      return Response.Error({
+        res,
+        status: 404,
+        message: "Bill not found",
+      });
+    }
+
+    if (bill.status === "Paid") {
+      return Response.Error({
+        res,
+        status: 400,
+        message: "Bill already paid",
+      });
+    }
+
+    if (bill.totalAmount <= 0) {
+      return Response.Error({
+        res,
+        status: 400,
+        message: "Cannot pay a bill with total amount 0. All items might be canceled.",
+      });
+    }
+
+    // ✅ Save table number statically in the bill
+    if (bill.table && bill.table.number) {
+      bill.tableNumber = bill.table.number;
+    }
+
+    bill.status = "Paid";
+    bill.paymentMethod = paymentMethod;
+
+    await bill.save();
+
+    // Set table to available only if it exists
+    if (bill.table && bill.table._id) {
+      await Table.findByIdAndUpdate(bill.table._id, { status: "Available" });
+    }
+
+    await Order.updateMany(
+      { _id: { $in: bill.orders } },
+      { $set: { status: "Completed" } }
+    );
+
+    return Response.Success({
+      res,
+      status: 200,
+      message: "Bill paid, orders completed & table is available",
+      data: bill,
+    });
+
+  } catch (err) {
+    return Response.Error({
+      res,
+      status: 500,
+      message: "Error processing payment",
+      error: err.message,
+    });
+  }
 };
+
 
 const getBill = async (req, res) => {
     try {
@@ -119,7 +125,6 @@ const getBill = async (req, res) => {
 };
 const getAllUnpaidBills = async (req, res) => {
     try {
-        // Find all bills where status is "Unpaid"
         const unpaidBills = await Bill.find({ status: "Unpaid" })
             .populate({
                 path: "table",
@@ -168,13 +173,13 @@ const getAllBills = async (req, res) => {
                 select: "items status totalPrice"
             });
 
+            console.log('bills', bills)
         return Response.Success({
             res,
             status: 200,
             message: "All bills retrieved successfully",
             data: bills,
         });
-
     } catch (err) {
         return Response.Error({
             res,
