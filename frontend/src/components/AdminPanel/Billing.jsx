@@ -103,6 +103,7 @@ const handlePrint = async (billId, mode = "print") => {
         reader.onloadend = () => resolve(reader.result);
       });
     }
+    console.log('settings.logo', settings.logo)
   } catch (err) {
     console.error("Failed to fetch settings:", err);
   }
@@ -248,7 +249,7 @@ const handlePrint = async (billId, mode = "print") => {
     if (paymentType === "Cash") {
       handlePay(selectedBillId, "Cash");
     } else if (paymentType === "Online") {
-      setShowScanner(true);
+      // setShowScanner(true);
       setScanningBillId(selectedBillId);
     }
 
