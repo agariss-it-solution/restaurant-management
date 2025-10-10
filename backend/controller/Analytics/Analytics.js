@@ -6,17 +6,17 @@ const getAnalytics = async (req, res) => {
     const now = new Date();
 
     // --- Daily Time Range (12 PM to 12 PM logic) ---
-let startTime, endTime;
+    const todayNoon = new Date();
+    todayNoon.setHours(12, 0, 0, 0); // today 12:00 PM
 
-if (now >= todayNoon) {
-  // It's after 12 PM today
-  startTime = todayNoon; // today at 12 PM
-  endTime = new Date(todayNoon.getTime() + 24 * 60 * 60 * 1000); // tomorrow at 12 PM
-} else {
-  // It's before 12 PM today
-  startTime = new Date(todayNoon.getTime() - 24 * 60 * 60 * 1000); // yesterday at 12 PM
-  endTime = todayNoon; // today at 12 PM
-}
+    let startTime, endTime;
+    if (now >= todayNoon) {
+      startTime = todayNoon;
+      endTime = new Date(todayNoon.getTime() + 24 * 60 * 60 * 1000); // tomorrow 12 PM
+    } else {
+      startTime = new Date(todayNoon.getTime() - 24 * 60 * 60 * 1000); // yesterday 12 PM
+      endTime = todayNoon;
+    }
 
     // --- Monthly Time Range ---
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
