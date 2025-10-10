@@ -1,68 +1,54 @@
 const Order = require('../../models/order');
 const Bill = require('../../models/bill');
-const { getMonthNumber } = require('../utils/dateConverter'); 
+const { getMonthNumber } = require('../utils/dateConverter');
 
 const getDashboardSummary = async (req, res) => {
     try {
         let { month, year } = req.query;
         const now = new Date();
-        
+
         const currentYear = now.getFullYear();
-        const currentMonthNumber = now.getMonth() + 1; // 1-indexed
+        const currentMonthNumber = now.getMonth() + 1;
 
         let targetYear, targetMonthNumber;
 
-        // --- 2. Determine Target Month and Year ---
         if (month && year) {
             targetMonthNumber = getMonthNumber(month);
             targetYear = parseInt(year);
-
             if (targetMonthNumber === null || isNaN(targetYear)) {
-                return res.status(400).json({
-                    message: `Invalid month name (${month}) or year (${year}) provided.`
-                });
+                return res.status(400).json({ message: `Invalid month name (${month}) or year (${year}) provided.` });
             }
-
         } else if (year) {
-            targetMonthNumber = 1; // Start from January
+            targetMonthNumber = 1;
             targetYear = parseInt(year);
-
             if (isNaN(targetYear)) {
-                 return res.status(400).json({ message: `Invalid year (${year}) provided.` });
+                return res.status(400).json({ message: `Invalid year (${year}) provided.` });
             }
-
         } else if (month) {
             targetMonthNumber = getMonthNumber(month);
             targetYear = currentYear;
-
             if (targetMonthNumber === null) {
-                 return res.status(400).json({ message: `Invalid month name (${month}) provided.` });
+                return res.status(400).json({ message: `Invalid month name (${month}) provided.` });
             }
-
         } else {
             targetMonthNumber = currentMonthNumber;
             targetYear = currentYear;
         }
 
-
         let startFilterDate, endFilterDateExclusive;
 
         if (year && !month) {
-            startFilterDate = new Date(targetYear, 0, 1);       // Jan 1st of target year
-            endFilterDateExclusive = new Date(targetYear + 1, 0, 1); // Jan 1st of next year
-            
+            startFilterDate = new Date(targetYear, 0, 1);
+            endFilterDateExclusive = new Date(targetYear + 1, 0, 1);
         } else {
             startFilterDate = new Date(targetYear, targetMonthNumber - 1, 1);
             endFilterDateExclusive = new Date(targetYear, targetMonthNumber, 1);
         }
-        
-        const filterLabel = (year && !month) 
-            ? `Year ${targetYear}` 
+
+        const filterLabel = (year && !month)
+            ? `Year ${targetYear}`
             : `${month || currentMonthNumber} ${targetYear}`;
 
-
-       
-        // This is separate and always uses the current date
         const todayNoon = new Date();
         todayNoon.setHours(12, 0, 0, 0);
 
@@ -75,17 +61,14 @@ const getDashboardSummary = async (req, res) => {
             endTime = todayNoon;
         }
 
-
-        // --- Daily Revenue (UNCHANGED) ---
+        // --- Daily Revenue ---
         const totalRevenueAgg = await Bill.aggregate([
             { $match: { createdAt: { $gte: startTime, $lt: endTime }, status: "Paid" } },
             { $group: { _id: null, total: { $sum: "$totalAmount" } } }
         ]);
         const totalRevenue = totalRevenueAgg[0]?.total || 0;
 
-
-        // ------------------------------------------------------------------
-        // --- 4. Dynamic Revenue (Using the Calculated Filter Range) ---
+        // --- Monthly Revenue ---
         const monthlyRevenueAgg = await Bill.aggregate([
             {
                 $match: {
@@ -96,21 +79,25 @@ const getDashboardSummary = async (req, res) => {
             { $group: { _id: null, total: { $sum: "$totalAmount" } } }
         ]);
         const monthlyRevenue = monthlyRevenueAgg[0]?.total || 0;
-        // ------------------------------------------------------------------
+
+        // --- Monthly Bill Count (NEW) ---
+        const monthlyBills = await Bill.countDocuments({
+            createdAt: { $gte: startFilterDate, $lt: endFilterDateExclusive }
+        });
 
 
-        // --- Orders & Stats Today (UNCHANGED) ---
+        // --- Orders & Stats Today ---
         const ordersToday = await Order.countDocuments({ createdAt: { $gte: startTime, $lt: endTime } });
         const completedOrders = await Order.countDocuments({ createdAt: { $gte: startTime, $lt: endTime }, status: "Completed" });
-        
+
         const unpaidBills = await Bill.aggregate([
-             { $match: { createdAt: { $gte: startTime, $lt: endTime }, status: "Unpaid" } },
-             { $unwind: "$orders" },
-             { $group: { _id: null, countOrders: { $sum: 1 } } }
+            { $match: { createdAt: { $gte: startTime, $lt: endTime }, status: "Unpaid" } },
+            { $unwind: "$orders" },
+            { $group: { _id: null, countOrders: { $sum: 1 } } }
         ]);
         const activeOrders = unpaidBills[0]?.countOrders || 0;
 
-        // --- Payment Method Breakdown (UNCHANGED, uses Daily Range) ---
+        // --- Payment Method Breakdown ---
         const paymentBreakdown = await Bill.aggregate([
             { $match: { createdAt: { $gte: startTime, $lt: endTime }, status: "Paid" } },
             { $group: { _id: "$paymentMethod", total: { $sum: "$totalAmount" } } }
@@ -118,21 +105,18 @@ const getDashboardSummary = async (req, res) => {
         const paymentTotals = { cash: 0, online: 0, total: 0 };
         for (const p of paymentBreakdown) {
             const method = (p._id || "").toLowerCase();
-            if (method === "cash") { paymentTotals.cash = p.total; } 
-            else if (method === "online") { paymentTotals.online = p.total; } 
+            if (method === "cash") paymentTotals.cash = p.total;
+            else if (method === "online") paymentTotals.online = p.total;
             paymentTotals.total += p.total;
         }
-        
-        // --- Daily Metrics (UNCHANGED) ---
+
         const avgOrderValue = ordersToday > 0 ? totalRevenue / ordersToday : 0;
         const completionRate = ordersToday > 0 ? (completedOrders / ordersToday) * 100 : 0;
 
-        // ------------------------------------------------------------------
-        // --- 5. Dynamic Orders & Stats (Using the Calculated Filter Range) ---
+        // --- Monthly Order Stats ---
         const monthlyOrders = await Order.countDocuments({
             createdAt: { $gte: startFilterDate, $lt: endFilterDateExclusive }
         });
-
         const monthlyCompletedOrders = await Order.countDocuments({
             createdAt: { $gte: startFilterDate, $lt: endFilterDateExclusive },
             status: "Completed"
@@ -141,7 +125,7 @@ const getDashboardSummary = async (req, res) => {
         const monthlyAvgOrderValue = monthlyOrders > 0 ? monthlyRevenue / monthlyOrders : 0;
         const monthlyCompletionRate = monthlyOrders > 0 ? (monthlyCompletedOrders / monthlyOrders) * 100 : 0;
 
-        // --- 6. Dynamic Top 5 Most Ordered Items (Using the Calculated Filter Range) ---
+        // --- Top 5 Items ---
         const topItemsAgg = await Order.aggregate([
             { $match: { createdAt: { $gte: startFilterDate, $lt: endFilterDateExclusive } } },
             { $unwind: "$items" },
@@ -150,29 +134,28 @@ const getDashboardSummary = async (req, res) => {
             { $sort: { totalQuantity: -1 } },
             { $limit: 5 }
         ]);
-        // ------------------------------------------------------------------
 
-        // --- Final Response ---
         return res.status(200).json({
             success: true,
             message: `Analytics fetched for ${filterLabel}. Daily stats for ${startTime.toLocaleDateString()} 12 PM to ${endTime.toLocaleDateString()} 12 PM.`,
             data: {
                 // Monthly/Yearly Filtered Stats
                 totalRevenue: monthlyRevenue.toFixed(2),
+                monthlyBills, // <-- Added this line
                 monthlyOrders,
                 monthlyCompletedOrders,
                 monthlyAvgOrderValue: monthlyAvgOrderValue.toFixed(2),
                 monthlyCompletionRate: monthlyCompletionRate.toFixed(2) + "%",
                 topItems: topItemsAgg,
 
-                // Daily Stats (Current Time)
+                // Daily Stats
                 todayRevenue: totalRevenue.toFixed(2),
                 ordersToday,
                 completedOrders,
                 activeOrders,
                 avgOrderValue: avgOrderValue.toFixed(2),
                 completionRate: completionRate.toFixed(2) + "%",
-                paymentTotals, 
+                paymentTotals
             }
         });
 
@@ -185,5 +168,15 @@ const getDashboardSummary = async (req, res) => {
         });
     }
 };
+
+// Helper: Convert month name (e.g., 'October') to number (e.g., 10)
+// function getMonthNumber(monthName) {
+//     const months = {
+//         january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
+//         july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
+//     };
+//     return months[monthName.toLowerCase()] || null;
+// }
+
 
 module.exports = getDashboardSummary;

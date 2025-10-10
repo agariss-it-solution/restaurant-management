@@ -31,6 +31,7 @@ function AnalyticsDashboard() {
         const params = { month, year }; // always include current month/year
         const res = await getAnalyticsfilter(params);
         setAnalytics(res.data);
+
       } catch (err) {
         console.error("Failed to load analytics", err);
       } finally {
@@ -129,7 +130,7 @@ function AnalyticsDashboard() {
             <div>
               <h6 className="fw-medium">Orders Monthly</h6>
               <h4 className="fw-bold text-primary">
-                {analytics?.monthlyOrders || 0}
+                {analytics?.monthlyBills || 0}
               </h4>
             </div>
             <FiUsers className="fs-3 text-primary" />

@@ -380,14 +380,6 @@ function ManageMenuPage() {
               placeholder="Enter price"
             />
           </Form.Group>
-          <Form.Group>
-            <Form.Check
-              type="checkbox"
-              label="Chef’s Special"
-              checked={itemSpecial}
-              onChange={() => setItemSpecial(!itemSpecial)}
-            />
-          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowItemModal(false)}>

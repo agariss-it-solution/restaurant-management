@@ -21,8 +21,8 @@ const OrderCard = () => {
       try {
         const data = await getAllPaidBills();
         setOrders(data);
+        console.log('data', data)
 
-    
       } catch (err) {
         setError("Failed to fetch paid orders.");
       } finally {
@@ -224,55 +224,55 @@ const OrderCard = () => {
 
 
 
-const handlePrintOrder = async (order) => {
-  let restaurant = {
-    name: "MK's Food",
-    address: "123 Main Street, City",
-    phone: "9876543210",
-    logo: "",
-  };
+  const handlePrintOrder = async (order) => {
+    let restaurant = {
+      name: "MK's Food",
+      address: "123 Main Street, City",
+      phone: "9876543210",
+      logo: "",
+    };
 
-  // Fetch restaurant settings
-  try {
-    const settings = await fetchSettings();
-    restaurant.name = settings.restaurantName || restaurant.name;
-    restaurant.address = settings.address || restaurant.address;
-    restaurant.phone = settings.phoneNumber || restaurant.phone;
+    // Fetch restaurant settings
+    try {
+      const settings = await fetchSettings();
+      restaurant.name = settings.restaurantName || restaurant.name;
+      restaurant.address = settings.address || restaurant.address;
+      restaurant.phone = settings.phoneNumber || restaurant.phone;
 
-    if (settings.logo) {
-      const response = await fetch(settings.logo);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      restaurant.logo = await new Promise(resolve => {
-        reader.onloadend = () => resolve(reader.result);
-      });
+      if (settings.logo) {
+        const response = await fetch(settings.logo);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        restaurant.logo = await new Promise(resolve => {
+          reader.onloadend = () => resolve(reader.result);
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch restaurant settings:", err);
     }
-  } catch (err) {
-    console.error("Failed to fetch restaurant settings:", err);
-  }
 
-  // Remove any existing overlay
-  const existing = document.getElementById("order-preview-overlay");
-  if (existing) existing.remove();
+    // Remove any existing overlay
+    const existing = document.getElementById("order-preview-overlay");
+    if (existing) existing.remove();
 
-  // Create print overlay
-  const overlay = document.createElement("div");
-  overlay.id = "order-preview-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100%",
-    height: "100%",
-    background: "#fff",
-    overflowY: "auto",
-    zIndex: "9999",
-    padding: "10px",
-    fontFamily: "'Courier New', monospace",
-  });
+    // Create print overlay
+    const overlay = document.createElement("div");
+    overlay.id = "order-preview-overlay";
+    Object.assign(overlay.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      width: "100%",
+      height: "100%",
+      background: "#fff",
+      overflowY: "auto",
+      zIndex: "9999",
+      padding: "10px",
+      fontFamily: "'Courier New', monospace",
+    });
 
-  const itemsRows = (order.items || []).map(i => `
+    const itemsRows = (order.items || []).map(i => `
     <tr>
       <td>${i.name || i.menuItem}</td>
       <td style="text-align:center;">${i.quantity}</td>
@@ -280,7 +280,7 @@ const handlePrintOrder = async (order) => {
     </tr>
   `).join("");
 
-  overlay.innerHTML = `
+    overlay.innerHTML = `
     <div style="max-width:400px; margin:auto;">
       <div style="text-align:center; margin-bottom:10px;">
         ${restaurant.logo ? `<img src="${restaurant.logo}" style="width:80px; height:auto; margin-bottom:5px;"><br>` : ""}
@@ -314,44 +314,44 @@ const handlePrintOrder = async (order) => {
     </div>
   `;
 
-  document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-  // Wait for all images in overlay to load before printing
-  const allImages = overlay.querySelectorAll("img");
-  let imagesLoaded = 0;
+    // Wait for all images in overlay to load before printing
+    const allImages = overlay.querySelectorAll("img");
+    let imagesLoaded = 0;
 
-  if (allImages.length === 0) {
-    triggerPrint();
-  } else {
-    allImages.forEach((img) => {
-      img.onload = img.onerror = () => {
-        imagesLoaded++;
-        if (imagesLoaded === allImages.length) {
+    if (allImages.length === 0) {
+      triggerPrint();
+    } else {
+      allImages.forEach((img) => {
+        img.onload = img.onerror = () => {
+          imagesLoaded++;
+          if (imagesLoaded === allImages.length) {
+            triggerPrint();
+          }
+        };
+      });
+
+      // Fallback: if images don’t load in 3 seconds, still try printing
+      setTimeout(() => {
+        if (imagesLoaded < allImages.length) {
+          console.warn("Images took too long to load. Proceeding to print anyway.");
           triggerPrint();
         }
-      };
-    });
+      }, 3000);
+    }
 
-    // Fallback: if images don’t load in 3 seconds, still try printing
-    setTimeout(() => {
-      if (imagesLoaded < allImages.length) {
-        console.warn("Images took too long to load. Proceeding to print anyway.");
-        triggerPrint();
-      }
-    }, 3000);
-  }
+    // Print function
+    function triggerPrint() {
+      const bodyChildren = [...document.body.children].filter(c => c !== overlay);
+      bodyChildren.forEach(c => (c.style.display = "none"));
 
-  // Print function
-  function triggerPrint() {
-    const bodyChildren = [...document.body.children].filter(c => c !== overlay);
-    bodyChildren.forEach(c => (c.style.display = "none"));
+      window.print();
 
-    window.print();
-
-    bodyChildren.forEach(c => (c.style.display = ""));
-    overlay.remove();
-  }
-};
+      bodyChildren.forEach(c => (c.style.display = ""));
+      overlay.remove();
+    }
+  };
 
 
 
@@ -400,14 +400,14 @@ const handlePrintOrder = async (order) => {
       }
     });
 
-    
+
     Object.values(merged).forEach((order) => {
       const total = (order.items || []).reduce((sum, item) => {
         const price = Number(item.Price ?? item.price) || 0;
         const qty = Number(item.quantity) || 0;
         return sum + price * qty;
       }, 0);
-      
+
       order.Price = Math.round((total + Number.EPSILON) * 100) / 100;
     });
 
@@ -419,57 +419,59 @@ const handlePrintOrder = async (order) => {
 
   return (
     <div className="container mt-4">
-  
-     <div className="d-flex flex-column flex-md-row flex-wrap gap-2 justify-content-between align-items-start mb-3">
 
-  <h4 className="text-capitalize mb-2 mb-md-0">Paid Bill History</h4>
+      <div className="d-flex flex-column flex-md-row flex-wrap gap-2 justify-content-between align-items-start mb-3">
+
+        <h4 className="text-capitalize mb-2 mb-md-0">Paid Bill History</h4>
 
 
-  <div className="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-end   w-md-auto">
+        <div className="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-end   w-md-auto">
 
-    <div className="d-flex flex-column flex-md-row gap-3 w-100 w-md-auto">
- 
-      <div className="d-flex flex-column flex-grow-1">
-        <label className="small mb-0">Start Date</label>
-        <DatePicker
-          selected={startDate}
-          onChange={(date) => setStartDate(date)}
-          dateFormat="dd-MM-yyyy"
-          className="form-control form-control-sm"
-          maxDate={endDate}
-          placeholderText="dd-mm-yyyy"
-        />
+          <div className="d-flex flex-column flex-md-row gap-3 w-100 w-md-auto">
+
+            <div className="d-flex flex-column flex-grow-1">
+              <label className="small mb-0 fw-bold">Start Date</label>
+              <DatePicker
+                selected={startDate}
+                onChange={(date) => setStartDate(date)}
+                dateFormat="dd-MM-yyyy"
+                minDate={new Date()}
+                maxDate={endDate || null}
+                className="form-control form-control-sm"
+                placeholderText="dd-mm-yyyy"
+              />
+
+            </div>
+
+
+            <div className="d-flex flex-column flex-grow-1">
+              <label className="small mb-0 fw-bold">End Date</label>
+              <DatePicker
+                selected={endDate}
+                onChange={(date) => setEndDate(date)}
+                dateFormat="dd-MM-yyyy"
+                className="form-control form-control-sm"
+                minDate={startDate}
+                placeholderText="dd-mm-yyyy"
+              />
+            </div>
+          </div>
+
+          {/* Export Dropdown */}
+          <div className="mt-2 mt-md-0">
+            <DropdownButton
+              id="export-dropdown"
+              title="Export"
+              variant="success"
+              size="sm"
+            >
+              <Dropdown.Item onClick={exportExcel}>Export Excel</Dropdown.Item>
+              <Dropdown.Item onClick={exportPDF}>Export PDF</Dropdown.Item>
+            </DropdownButton>
+          </div>
+
+        </div>
       </div>
-
-
-      <div className="d-flex flex-column flex-grow-1">
-        <label className="small mb-0">End Date</label>
-        <DatePicker
-          selected={endDate}
-          onChange={(date) => setEndDate(date)}
-          dateFormat="dd-MM-yyyy"
-          className="form-control form-control-sm"
-          minDate={startDate}
-          placeholderText="dd-mm-yyyy"
-        />
-      </div>
-    </div>
-
-    {/* Export Dropdown */}
-    <div className="mt-2 mt-md-0">
-      <DropdownButton
-        id="export-dropdown"
-        title="Export"
-        variant="success"
-        size="sm"
-      >
-        <Dropdown.Item onClick={exportExcel}>Export Excel</Dropdown.Item>
-        <Dropdown.Item onClick={exportPDF}>Export PDF</Dropdown.Item>
-      </DropdownButton>
-    </div>
-    
-  </div>
-</div>
 
 
       {/* Orders grid */}
@@ -489,7 +491,6 @@ const handlePrintOrder = async (order) => {
                   <div className="d-flex justify-content-between align-items-center flex-wrap">
                     <strong className="fs-6 mb-0">
                       Table {order.tableNumber || order.table}
-                      
                     </strong>
                     <div className="d-flex align-items-center gap-3">
                       <Badge
@@ -497,6 +498,14 @@ const handlePrintOrder = async (order) => {
                         className="px-2 py-1 rounded-pill text-capitalize"
                       >
                         {order.status || "New"}
+                        {/* {order.paymentMethod || "New"} */}
+                      </Badge>
+                      <Badge
+                        bg="success"
+                        className="px-2 py-1 rounded-pill text-capitalize"
+                      >
+                        {order.paymentMethod || "New"}
+                        {/* {order.paymentMethod || "New"} */}
                       </Badge>
                       <Button
                         variant="outline-primary"
@@ -509,6 +518,11 @@ const handlePrintOrder = async (order) => {
                   </div>
                   <div className="text-dark fw-medium small mt-1">
                     Order ID: #{order.orderId}
+                  </div>
+
+                  {/* Created At time */}
+                  <div className="text-muted small">
+                    {order.createdAt ? new Date(order.createdAt).toLocaleString() : "N/A"}
                   </div>
                 </div>
 
@@ -569,8 +583,8 @@ const handlePrintOrder = async (order) => {
                   <span>Total:</span>
                   <span className="text-success">₹{calculateOrderTotal(order).toFixed(2)}</span>
                 </div>
-
               </div>
+
             </div>
           );
         })}

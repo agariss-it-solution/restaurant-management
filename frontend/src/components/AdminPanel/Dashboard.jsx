@@ -20,14 +20,15 @@ function Dashboard() {
   useEffect(() => {
     const getRevenue = async () => {
       const result = await getAnalytics();
-      console.log("API result:", result);
+      console.log("API result:", result.data);
 
       if (result && result.success) {
         setData({
           todayRevenue: result.data.todayRevenue,
           activeOrders: result.data.activeOrders,
-          ordersToday: result.data.ordersToday, 
+          ordersToday: result.data.completedOrders,
         });
+
       } else {
         console.warn("API call was unsuccessful or result is invalid");
       }

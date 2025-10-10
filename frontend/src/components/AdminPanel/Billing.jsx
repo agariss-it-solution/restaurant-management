@@ -4,6 +4,7 @@ import { getAllBills,fetchSettings, payBill, getAnalytics } from "../config/api"
 import { useNavigate } from "react-router-dom";
 import { Button, Modal } from "react-bootstrap";
 import QRScannerModal from "./QRScannerModal";
+import html2pdf from 'html2pdf.js';
 
 function BillingRevenue() {
   const [bills, setBills] = useState([]);
@@ -67,10 +68,17 @@ function BillingRevenue() {
     }
    
   };
+const handlePrint = async (billId, mode = "print") => {
+  // ✅ OPEN PRINT WINDOW IMMEDIATELY to avoid Android popup blocking
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert("Popup blocked. Please allow popups to print the bill.");
+    return;
+  }
 
-const handlePrint = async (billId) => {
-  const billElement = document.getElementById(`bill-${billId}`);
-  if (!billElement) return;
+  // 🧠 Use loading message while fetching data
+  printWindow.document.write("<p>Loading bill...</p>");
+  printWindow.document.close();
 
   // Fetch restaurant settings
   let settings = {
@@ -99,145 +107,129 @@ const handlePrint = async (billId) => {
     console.error("Failed to fetch settings:", err);
   }
 
-  // Clone bill content and clean it
+  const billElement = document.getElementById(`bill-${billId}`);
+  if (!billElement) return;
+
   const clonedBill = billElement.cloneNode(true);
-  clonedBill.querySelectorAll(
-    "button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge"
-  ).forEach(el => el.remove());
+  clonedBill.querySelectorAll("button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge")
+    .forEach(el => el.remove());
 
-  // Create overlay
-  const overlay = document.createElement("div");
-  overlay.id = "bill-print-overlay";
-  Object.assign(overlay.style, {
-    position: "fixed",
-    top: "0",
-    left: "0",
-    width: "100%",
-    height: "100%",
-    background: "#fff",
-    overflowY: "auto",
-    zIndex: "9999",
-    padding: "10px",
-    fontFamily: "'Courier New', monospace",
-  });
+  const billData = bills.find(b => b._id === billId);
+  const calculateBillTotal = () => {
+    if (!billData) return 0;
+    return billData.orders.reduce((sum, order) => 
+      sum + order.items.reduce((osum, item) => {
+        if (item.isCancelled || item.quantity === 0) return osum;
+        return osum + item.Price * item.quantity;
+      }, 0), 0
+    );
+  };
 
-  // Prepare overlay HTML
-  overlay.innerHTML = `
-    <style>
-      @media print {
-        body * {
-          visibility: hidden !important;
-        }
-        #bill-print-overlay, #bill-print-overlay * {
-          visibility: visible !important;
-        }
-        #bill-print-overlay {
-          position: absolute !important;
-          top: 0 !important;
-          left: 0 !important;
-          width: 100% !important;
-          background: white !important;
-        }
-      }
-      .receipt-container {
-        width: 80mm;
-        max-width: 100%;
-        margin: auto;
-        font-size: 12px;
-      }
-      .receipt-header img {
-        width: 80px;
-        height: auto;
-        margin-bottom: 5px;
-      }
-      .receipt-header h2 {
-        margin: 5px 0;
-        font-size: 18px;
-      }
-      .receipt-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
-      }
-      .receipt-table th, .receipt-table td {
-        padding: 4px;
-        border-bottom: 1px dashed #000;
-        text-align: left;
-      }
-      .receipt-footer {
-        margin-top: 15px;
-        text-align: center;
-      }
-      hr {
-        border: none;
-        border-top: 1px dashed #000;
-        margin: 10px 0;
-      }
-    </style>
+  const totalAmount = calculateBillTotal();
 
-    <div class="receipt-container">
-      <div class="receipt-header" style="text-align:center;">
-        ${settings.logo ? `<img src="${settings.logo}" alt="Logo">` : ""}
-        <h2>${settings.restaurantName}</h2>
-        <div><small>${settings.address}</small></div>
-        <div><small>Phone: ${settings.phoneNumber}</small></div>
-        <hr>
+  // ✅ Print HTML content
+  const contentHTML = `
+    <div style="width: 80mm; max-width: 100%; margin: auto; font-family: Arial; font-size: 12px; color: #222; border: 1px solid #ddd; padding: 15px;">
+      <div style="text-align: center; margin-bottom: 10px;">
+        ${settings.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 70px; height: auto; margin-bottom: 8px;">` : ""}
+        <h1 style="margin: 0; font-size: 18px;">${settings.restaurantName}</h1>
+        <p style="margin: 0; font-size: 10px; color: #555;">${settings.address}</p>
+        <p style="margin: 0; font-size: 10px; color: #555;">Phone: ${settings.phoneNumber}</p>
+      </div>
+      <hr style="border-top: 1px dashed #333;">
+
+      <div style="margin-bottom: 10px;">
+        <strong>Table: </strong> ${billData?.table?.number || "-"}<br>
+        <strong>Date: </strong> ${new Date(billData?.createdAt).toLocaleDateString()}<br>
+        <strong>Time: </strong> ${new Date(billData?.createdAt).toLocaleTimeString()}
       </div>
 
-      <div class="receipt-body">
-        ${clonedBill.innerHTML}
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 1px solid #ccc;">
+            <th style="text-align: left;">Item</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: right;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${billData?.orders.map(order => order.items.filter(item => !item.isCancelled && item.quantity > 0).map(item => `
+            <tr>
+              <td>${item.name}</td>
+              <td style="text-align: center;">${item.quantity}</td>
+              <td style="text-align: right;">₹${(item.Price * item.quantity).toFixed(2)}</td>
+            </tr>
+          `).join('')).join('')}
+        </tbody>
+      </table>
+
+      <hr style="border-top: 1px solid #333;">
+      <div style="display: flex; justify-content: space-between; font-weight: bold;">
+        <span>Total</span>
+        <span>₹${totalAmount.toFixed(2)}</span>
       </div>
 
-      <hr>
-      <div class="receipt-footer">
-        Thank you for visiting!<br>
-        Please come again.
+      <hr style="border-top: 1px dashed #333;">
+      <div style="text-align: center; font-size: 11px; color: #555;">
+        Thank you for dining with us!<br>
+        Please visit again.
       </div>
     </div>
   `;
 
-  document.body.appendChild(overlay);
+  // ✅ Write final HTML to the opened window
+  printWindow.document.open();
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print Bill</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          @media print {
+            body {
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              font-family: Arial, sans-serif;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              padding: 4px 0;
+              border-bottom: 1px solid #ccc;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+            }
+          }
+        </style>
+      </head>
+      <body>${contentHTML}</body>
+    </html>
+  `);
+  printWindow.document.close();
 
-  // Wait for images to load (especially logo) before printing
-  const images = overlay.querySelectorAll("img");
-  let imagesLoaded = 0;
-
-  if (images.length === 0) {
-    triggerPrint();
-  } else {
-    images.forEach(img => {
-      img.onload = img.onerror = () => {
-        imagesLoaded++;
-        if (imagesLoaded === images.length) {
-          triggerPrint();
-        }
-      };
-    });
-
-    // Fallback if image loading takes too long
+  // ✅ Wait a bit before printing (helps Android render)
+  printWindow.onload = () => {
     setTimeout(() => {
-      if (imagesLoaded < images.length) {
-        console.warn("Images took too long to load. Proceeding with print.");
-        triggerPrint();
+      printWindow.focus();
+      printWindow.print();
+
+      // Fallbacks
+      printWindow.onafterprint = () => printWindow.close();
+
+      if (printWindow.matchMedia) {
+        const mediaQueryList = printWindow.matchMedia('print');
+        mediaQueryList.addListener(mql => {
+          if (!mql.matches) printWindow.close();
+        });
       }
-    }, 3000);
-  }
-
-  function triggerPrint() {
-    const bodyChildren = [...document.body.children].filter(c => c !== overlay);
-    bodyChildren.forEach(c => (c.style.display = "none"));
-
-    window.print();
-
-    // Restore and clean up after print
-    bodyChildren.forEach(c => (c.style.display = ""));
-    overlay.remove();
-  }
+    }, 700); // 500-1000ms delay helps on Android
+  };
 };
-
-
-
-
 
 
   const toggleExpand = (oi) => {
