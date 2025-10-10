@@ -1,6 +1,6 @@
 // src/config/api.js
 import axios from "axios";
-const API_URL = "http://mksfood.in/api/v1/auth"; // Base URL for auth and tables
+const API_URL = "https://mksfood.in/api/v1/auth"; // Base URL for auth and tables
 
 // 🔹 Helper to get token
 const getToken = () => {
@@ -649,7 +649,7 @@ export const cancelOrderItem = async ({ orderId, itemId }) => {
 
   try {
     const res = await axios.post(
-      "http://mksfood.in/api/v1/auth/orders/cancel",
+      "https://mksfood.in/api/v1/auth/orders/cancel",
       { orderId, itemId },
       { headers: { Authorization: `Bearer ${token}` } }
     );
