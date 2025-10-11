@@ -463,7 +463,7 @@ function BillingRevenue() {
                       <div className="d-flex flex-column flex-md-row flex-wrap gap-2 mt-3">
                       
                         <Button
-                          className="btn btn-primary flex-fill"
+                          className="btn btn-success flex-fill"
                           onClick={() => openConfirm(bill._id)}
                         >
                           Pay
