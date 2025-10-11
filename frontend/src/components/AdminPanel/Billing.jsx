@@ -11,6 +11,7 @@ function BillingRevenue() {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [showScanner, setShowScanner] = useState(false);
   const [scanningBillId, setScanningBillId] = useState(null);
+  const [selectedBillAmount, setSelectedBillAmount] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [paymentType, setPaymentType] = useState("");
   const [selectedBillId, setSelectedBillId] = useState(null);
@@ -72,67 +73,67 @@ function BillingRevenue() {
     }
 
   };
-  
-const handleSplitPayment = async () => {
-  if (!splitBillId) return;
 
-  // console.log("splitAmounts at payment:", splitAmounts);
+  const handleSplitPayment = async () => {
+    if (!splitBillId) return;
 
-  const cashAmount = parseFloat(splitAmounts.cash);
-  const onlineAmount = parseFloat(splitAmounts.online);
+    // console.log("splitAmounts at payment:", splitAmounts);
 
-  // console.log("cashAmount:", cashAmount, "onlineAmount:", onlineAmount);
+    const cashAmount = parseFloat(splitAmounts.cash);
+    const onlineAmount = parseFloat(splitAmounts.online);
 
-  if (isNaN(cashAmount) || isNaN(onlineAmount)) {
-    alert("Please enter valid numbers for split amounts.");
-    return;
-  }
+    // console.log("cashAmount:", cashAmount, "onlineAmount:", onlineAmount);
 
-  const billData = bills.find(b => b._id === splitBillId);
-  if (!billData) {
-    alert("Bill not found.");
-    return;
-  }
+    if (isNaN(cashAmount) || isNaN(onlineAmount)) {
+      alert("Please enter valid numbers for split amounts.");
+      return;
+    }
 
-  const totalBillAmount = billData.orders.reduce((sum, order) =>
-    sum + order.items.reduce((osum, item) => {
-      if (item.isCancelled || item.quantity === 0) return osum;
-      return osum + item.Price * item.quantity;
-    }, 0), 0
-  );
+    const billData = bills.find(b => b._id === splitBillId);
+    if (!billData) {
+      alert("Bill not found.");
+      return;
+    }
 
-  if ((cashAmount + onlineAmount).toFixed(2) !== totalBillAmount.toFixed(2)) {
-    alert(`Split amounts must add up exactly to total bill ₹${totalBillAmount.toFixed(2)}`);
-    return;
-  }
-
-  try {
-    const payload = {
-      paymentMethod: "split",
-      paymentAmounts: {
-        cash: cashAmount,
-        online: onlineAmount,
-      },
-    };
-
-
-    const updatedBill = await payBill(splitBillId, payload);
-
-    setBills(prevBills =>
-      prevBills.map(bill =>
-        bill._id === splitBillId ? { ...bill, status: updatedBill.status || "Paid" } : bill
-      )
+    const totalBillAmount = billData.orders.reduce((sum, order) =>
+      sum + order.items.reduce((osum, item) => {
+        if (item.isCancelled || item.quantity === 0) return osum;
+        return osum + item.Price * item.quantity;
+      }, 0), 0
     );
 
-    setShowSplitModal(false);
-    setSplitBillId(null);
-    setSplitAmounts({ cash: '', online: '' });
+    if ((cashAmount + onlineAmount).toFixed(2) !== totalBillAmount.toFixed(2)) {
+      alert(`Split amounts must add up exactly to total bill ₹${totalBillAmount.toFixed(2)}`);
+      return;
+    }
 
-  } catch (err) {
-    console.error("Split payment failed:", err);
-    alert("Payment failed. Please try again.");
-  }
-};
+    try {
+      const payload = {
+        paymentMethod: "split",
+        paymentAmounts: {
+          cash: cashAmount,
+          online: onlineAmount,
+        },
+      };
+
+
+      const updatedBill = await payBill(splitBillId, payload);
+
+      setBills(prevBills =>
+        prevBills.map(bill =>
+          bill._id === splitBillId ? { ...bill, status: updatedBill.status || "Paid" } : bill
+        )
+      );
+
+      setShowSplitModal(false);
+      setSplitBillId(null);
+      setSplitAmounts({ cash: '', online: '' });
+
+    } catch (err) {
+      console.error("Split payment failed:", err);
+      alert("Payment failed. Please try again.");
+    }
+  };
 
 
 
@@ -327,25 +328,40 @@ const handleSplitPayment = async () => {
     setExpandedOrders((prev) => ({ ...prev, [oi]: !prev[oi] }));
   };
 
-  const openConfirm = (billId, type) => {
+  const openConfirm = (billId) => {
+    const billData = bills.find(b => b._id === billId);
+    if (!billData) return;
+
+    const billTotal = billData.orders.reduce((sum, order) =>
+      sum + order.items.reduce((osum, item) => {
+        if (item.isCancelled || item.quantity === 0) return osum;
+        return osum + item.Price * item.quantity;
+      }, 0), 0
+    );
+
     setSelectedBillId(billId);
-    setPaymentType(type);
+    setSelectedBillAmount(billTotal);
     setShowConfirm(true);
   };
 
+
   const confirmPay = () => {
-    if (!selectedBillId) return;
+    if (!selectedBillId || !paymentType) return;
 
     if (paymentType === "Cash") {
       handlePay(selectedBillId, "Cash");
     } else if (paymentType === "Online") {
-      setShowScanner(true);  // <== Make sure this is active!
+      setShowScanner(true);
       setScanningBillId(selectedBillId);
+    } else if (paymentType === "Split") {
+      openSplitModal(selectedBillId);
     }
 
+    // Close selection modal
     setShowConfirm(false);
-    setSelectedBillId(null);
+    setPaymentType("");
   };
+
 
 
   const summaryItems = [
@@ -445,24 +461,13 @@ const handleSplitPayment = async () => {
 
                       {/* Buttons - MOBILE FIXED: stack buttons on small screens */}
                       <div className="d-flex flex-column flex-md-row flex-wrap gap-2 mt-3">
-                        <button
-                          className="btn btn-success flex-fill"
-                          onClick={() => openConfirm(bill._id, "Cash")}
-                        >
-                          <FiCheckCircle className="me-2" /> Pay Cash
-                        </button>
-                        <button
+                      
+                        <Button
                           className="btn btn-primary flex-fill"
-                          onClick={() => openConfirm(bill._id, "Online")}
+                          onClick={() => openConfirm(bill._id)}
                         >
-                          <FiCreditCard className="me-2" />Pay Online
-                        </button>
-                        <button
-                          className="btn btn-warning flex-fill"
-                          onClick={() => openSplitModal(bill._id)}
-                        >
-                          Split Pay
-                        </button>
+                          Pay
+                        </Button>
 
 
                         <button
@@ -608,32 +613,32 @@ const handleSplitPayment = async () => {
           </div>
           <div className="mb-3">
             <label className="form-label">Online Amount</label>
-          <input
-  type="number"
-  className="form-control"
-  value={splitAmounts.online}
-  min="0"
-  step="0.01"
-  onChange={(e) => {
-    const val = e.target.value;
-    const billData = bills.find(b => b._id === splitBillId);
-    if (!billData) return;
+            <input
+              type="number"
+              className="form-control"
+              value={splitAmounts.online}
+              min="0"
+              step="0.01"
+              onChange={(e) => {
+                const val = e.target.value;
+                const billData = bills.find(b => b._id === splitBillId);
+                if (!billData) return;
 
-    const totalBillAmount = billData.orders.reduce((sum, order) =>
-      sum + order.items.reduce((osum, item) => {
-        if (item.isCancelled || item.quantity === 0) return osum;
-        return osum + item.Price * item.quantity;
-      }, 0), 0
-    );
+                const totalBillAmount = billData.orders.reduce((sum, order) =>
+                  sum + order.items.reduce((osum, item) => {
+                    if (item.isCancelled || item.quantity === 0) return osum;
+                    return osum + item.Price * item.quantity;
+                  }, 0), 0
+                );
 
-    const onlineVal = parseFloat(val) || 0;
+                const onlineVal = parseFloat(val) || 0;
 
-    setSplitAmounts({
-      online: val,
-      cash: (totalBillAmount - onlineVal).toFixed(2),
-    });
-  }}
-/>
+                setSplitAmounts({
+                  online: val,
+                  cash: (totalBillAmount - onlineVal).toFixed(2),
+                });
+              }}
+            />
 
 
           </div>
@@ -644,6 +649,68 @@ const handleSplitPayment = async () => {
           </Button>
           <Button variant="warning" className="px-4 rounded-pill" onClick={handleSplitPayment}>
             Pay
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal
+        show={showConfirm}
+        onHide={() => setShowConfirm(false)}
+        centered
+        size="md"
+        backdrop="static"
+        keyboard={false}
+        contentClassName="rounded-4 shadow p-3"
+      >
+        <Modal.Header className="border-0">
+          <Modal.Title className="fw-bold text-center w-100">
+            Select Payment Method
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center">
+          <p className="fw-semibold mb-4">
+            Bill Total: ₹{selectedBillAmount?.toFixed(2)}
+          </p>
+
+          <div className="d-grid gap-2 mb-3">
+            <Button
+              variant={paymentType === "Cash" ? "success" : "outline-success"}
+              onClick={() => setPaymentType("Cash")}
+            >
+              Cash
+            </Button>
+            <Button
+              variant={paymentType === "Online" ? "primary" : "outline-primary"}
+              onClick={() => setPaymentType("Online")}
+            >
+              Online
+            </Button>
+            <Button
+              variant={paymentType === "Split" ? "warning" : "outline-warning"}
+              onClick={() => setPaymentType("Split")}
+            >
+              Half Pay (Split)
+            </Button>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="d-flex justify-content-center border-0">
+          <Button
+            variant="outline-secondary"
+            className="px-4 rounded-pill"
+            onClick={() => {
+              setShowConfirm(false);
+              setPaymentType("");
+              setSelectedBillId(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            className="px-4 rounded-pill"
+            onClick={confirmPay}
+            disabled={!paymentType}
+          >
+            Pay ₹{selectedBillAmount?.toFixed(2)}
           </Button>
         </Modal.Footer>
       </Modal>
