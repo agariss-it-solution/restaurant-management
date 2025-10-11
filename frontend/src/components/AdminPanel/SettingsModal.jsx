@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Button, Form, Image, Alert } from "react-bootstrap";
+import { Modal, Button, Form, Image } from "react-bootstrap";
 import { fetchSettings, updateSettings } from "../config/api";
 
 function SettingsModal({ show, onHide }) {
@@ -9,9 +9,10 @@ function SettingsModal({ show, onHide }) {
     phoneNumber: "",
     address: "",
     thankYouMessage: "",
-    file: "",
-    logo:"",
-    fileRaw: null,
+    file: "",       // QR image URL preview
+    logo: "",       // Bill logo URL preview
+    fileRaw: null,  // QR File object
+    logoRaw: null,  // Logo File object
     createdAt: "",
     updatedAt: "",
   });
@@ -30,9 +31,10 @@ function SettingsModal({ show, onHide }) {
           phoneNumber: data.phoneNumber || "",
           address: data.address || "",
           thankYouMessage: data.thankYouMessage || "",
-          file: data.qr || "",
-          logo: data.logo,
+          file: data.qr || "",      // existing QR url
+          logo: data.logo || "",    // existing Bill logo url
           fileRaw: null,
+          logoRaw: null,
           createdAt: data.createdAt || "",
           updatedAt: data.updatedAt || "",
         });
@@ -76,7 +78,6 @@ function SettingsModal({ show, onHide }) {
     return Object.keys(newErrors).length === 0;
   };
 
-
   const handleSave = async () => {
     if (!validate()) return;
 
@@ -88,8 +89,13 @@ function SettingsModal({ show, onHide }) {
       formData.append("address", settings.address);
       formData.append("email", settings.email);
       formData.append("thankYouMessage", settings.thankYouMessage);
+
       if (settings.fileRaw) {
         formData.append("qr", settings.fileRaw);
+      }
+
+      if (settings.logoRaw) {
+        formData.append("logo", settings.logoRaw);
       }
 
       const updated = await updateSettings(formData);
@@ -101,7 +107,9 @@ function SettingsModal({ show, onHide }) {
         address: updated.address || "",
         thankYouMessage: updated.thankYouMessage || "",
         file: updated.qr || "",
+        logo: updated.logo || "",
         fileRaw: null,
+        logoRaw: null,
         createdAt: updated.createdAt || "",
         updatedAt: updated.updatedAt || "",
       });
@@ -124,7 +132,9 @@ function SettingsModal({ show, onHide }) {
       address: "",
       thankYouMessage: "",
       file: "",
+      logo: "",
       fileRaw: null,
+      logoRaw: null,
       createdAt: "",
       updatedAt: "",
     });
@@ -216,7 +226,7 @@ function SettingsModal({ show, onHide }) {
             />
           </Form.Group>
 
-          {/* QR File Upload */}
+          {/* Payment QR Upload */}
           <Form.Group className="mb-3">
             <Form.Label>Payment QR</Form.Label>
             <Form.Control
@@ -226,13 +236,50 @@ function SettingsModal({ show, onHide }) {
                 setSettings({
                   ...settings,
                   fileRaw: e.target.files[0],
-                  file: e.target.files[0] ? URL.createObjectURL(e.target.files[0]) : "",
+                  file: e.target.files[0]
+                    ? URL.createObjectURL(e.target.files[0])
+                    : "",
                 })
               }
             />
             {settings.file && (
               <div className="mt-3">
-                <Image src={settings.file} alt="QR / Logo Preview" fluid thumbnail width={150} />
+                <Image
+                  src={settings.file}
+                  alt="Payment QR Preview"
+                  fluid
+                  thumbnail
+                  width={150}
+                />
+              </div>
+            )}
+          </Form.Group>
+
+          {/* Bill Logo Upload */}
+          <Form.Group className="mb-3">
+            <Form.Label>Bill Logo</Form.Label>
+            <Form.Control
+              type="file"
+              accept="image/*"
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  logoRaw: e.target.files[0],
+                  logo: e.target.files[0]
+                    ? URL.createObjectURL(e.target.files[0])
+                    : "",
+                })
+              }
+            />
+            {settings.logo && (
+              <div className="mt-3">
+                <Image
+                  src={settings.logo}
+                  alt="Bill Logo Preview"
+                  fluid
+                  thumbnail
+                  width={150}
+                />
               </div>
             )}
           </Form.Group>
@@ -241,18 +288,24 @@ function SettingsModal({ show, onHide }) {
           <hr />
           <h5>Bill Header Preview</h5>
           <div className="p-3 border rounded bg-light text-center">
-            <h5 className="mb-2">{settings.restaurantName || "Restaurant Name"}</h5>
+            {settings.logo && (
+              <Image
+                src={settings.logo}
+                alt="Bill Logo"
+                fluid
+                thumbnail
+                width={100}
+                className="mb-2"
+              />
+            )}
+            <h5 className="mb-2">
+              {settings.restaurantName || "Restaurant Name"}
+            </h5>
             <p className="mb-1">{settings.address || "Address goes here"}</p>
             <p className="mb-1">
               {settings.phoneNumber && <span>{settings.phoneNumber}</span>}
-              {/* {settings.email && (
-                <>
-                  {" "}•{" "}
-                  <a href={`mailto:${settings.email}`}>{settings.email}</a>
-                </>
-              )} */}
             </p>
-            <p className="mb-0">  {settings.email}</p>
+            <p className="mb-0">{settings.email}</p>
           </div>
         </Form>
       </Modal.Body>

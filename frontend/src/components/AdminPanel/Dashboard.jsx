@@ -20,7 +20,7 @@ function Dashboard() {
   useEffect(() => {
     const getRevenue = async () => {
       const result = await getAnalytics();
-      console.log("API result:", result.data);
+      // console.log("API result:", result.data);
 
       if (result && result.success) {
         setData({

@@ -8,7 +8,7 @@ const login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-      
+
         if (!email || !password) {
             return Response.Error({
                 res,
@@ -17,7 +17,7 @@ const login = async (req, res) => {
             });
         }
 
-    
+
         const user = await User.findOne({ email });
         if (!user) {
             return Response.Error({
@@ -37,7 +37,7 @@ const login = async (req, res) => {
             });
         }
 
-      
+
         const expiresIn = "30d";
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
@@ -45,7 +45,7 @@ const login = async (req, res) => {
             //   { expiresIn }
         );
 
-      
+
         const decoded = jwt.decode(token);
 
         return Response.Success({
@@ -93,7 +93,7 @@ const sendResetPasswordEmail = async (req, res) => {
         const { email } = req.body;
 
         if (!email) {
-      
+
             return Response.Error({
                 res,
                 status: 400,
@@ -110,7 +110,7 @@ const sendResetPasswordEmail = async (req, res) => {
             });
         }
 
-      
+
         const token = jwt.sign(
             { email: user.email },
             process.env.JWT_SECRET,
@@ -120,7 +120,7 @@ const sendResetPasswordEmail = async (req, res) => {
         // Build reset link
         const resetLink = `${process.env.FRONTEND_URL}/?token=${token}&email=${email}`;
 
-    
+
         const emailBody = `
             <html>
                 <head>
@@ -175,8 +175,8 @@ const sendResetPasswordEmail = async (req, res) => {
             </html>
         `;
 
-      
-        await sendEmail({
+
+        const data = await sendEmail({
             to: process.env.EMAIL_USER,
             subject: "Reset Your Password",
             html: emailBody,
@@ -185,7 +185,7 @@ const sendResetPasswordEmail = async (req, res) => {
             res,
             status: 200,
             message: "Reset password email sent successfully",
-            data: resetLink,
+            data: { resetLink, data },
         });
 
     } catch (error) {

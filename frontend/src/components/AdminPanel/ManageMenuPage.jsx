@@ -324,11 +324,18 @@ function ManageMenuPage() {
               onChange={(e) => {
                 const image = e.target.files[0];
                 if (image) {
+                  const validTypes = ["image/jpeg", "image/png"];
+                  if (!validTypes.includes(image.type)) {
+                    toast.error("Only JPG and PNG images are allowed");
+                    e.target.value = null; // reset file input
+                    return;
+                  }
                   setCategoryImage(image);
                   setPreviewUrl(URL.createObjectURL(image));
                 }
               }}
             />
+
             {previewUrl && (
               <div className="mt-2 text-center">
                 <img

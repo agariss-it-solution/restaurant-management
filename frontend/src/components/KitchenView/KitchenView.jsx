@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button, Badge, Container, Row, Col } from "react-bootstrap";
 import { fetchOrders, logout, updateOrderStatus } from "../config/api";
 import { useNavigate } from "react-router-dom";
 import { FiLogOut } from "react-icons/fi";
 import { toast } from "react-toastify";
+import sounds from "./sounds/new-notification-022-370046.mp3";
 import logo from "../Images/Untitled design.png";
 
 const KitchenDisplay = () => {
@@ -12,6 +13,9 @@ const KitchenDisplay = () => {
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
+
+  const audioRef = useRef(null); // Sound notification reference
+  const previousOrderIdsRef = useRef([]); // Track previous order IDs
 
   const handleLogout = async () => {
     try {
@@ -22,41 +26,53 @@ const KitchenDisplay = () => {
     navigate("/");
   };
 
-useEffect(() => {
-  let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-  const loadOrders = async () => {
-    try {
-      const data = await fetchOrders();
-      if (isMounted) {
-        setOrders(
-          (data.data || []).map((order) => ({
-            ...order,
-            orderId: order.orderId || order._id,
-          }))
+    const loadOrders = async () => {
+      try {
+        const data = await fetchOrders();
+        if (!isMounted) return;
+
+        const newOrders = (data.data || []).map((order) => ({
+          ...order,
+          orderId: order.orderId || order._id,
+        }));
+
+        // Compare order IDs
+        const newOrderIds = newOrders.map((o) => o.orderId);
+        const prevOrderIds = previousOrderIdsRef.current;
+
+        const hasNewOrders = newOrderIds.some(
+          (id) => !prevOrderIds.includes(id)
         );
+
+        if (hasNewOrders && audioRef.current) {
+          audioRef.current.play().catch((err) => {
+            console.warn("Audio play failed:", err);
+          });
+        }
+
+        // Save new list
+        previousOrderIdsRef.current = newOrderIds;
+        setOrders(newOrders);
         setError(null);
+      } catch (err) {
+        console.error("Error loading orders:", err);
+        if (isMounted) setError("Failed to fetch orders.");
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    } catch (err) {
-      console.error("Error loading orders:", err);
-      if (isMounted) setError("Failed to fetch orders.");
-    } finally {
-      if (isMounted) setLoading(false);
-    }
-  };
+    };
 
-  // Initial load
-  loadOrders();
+    loadOrders();
+    const interval = setInterval(loadOrders, 3000);
 
-  // Refresh orders every 3 seconds (not 100ms!)
-  const interval = setInterval(loadOrders, 3000);
-
-  // Cleanup
-  return () => {
-    isMounted = false;
-    clearInterval(interval);
-  };
-}, []);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const handleMarkCompleted = async (orderId) => {
     try {
@@ -73,7 +89,6 @@ useEffect(() => {
     }
   };
 
-
   return (
     <div className="p-lg-3">
       {/* Header */}
@@ -86,7 +101,7 @@ useEffect(() => {
             style={{ width: "50px", height: "50px", objectFit: "contain" }}
           />
           <div>
-            <h4 className="mb-0 fw-bold ">Kitchen Display</h4>
+            <h4 className="mb-0 fw-bold">Kitchen Display</h4>
             <small className="text-dark fw-medium">Welcome, Chef</small>
           </div>
         </div>
@@ -107,7 +122,7 @@ useEffect(() => {
       </div>
 
       {/* Orders Grid or Empty State */}
-      <div className="container mt-4 ">
+      <div className="container mt-4">
         {loading ? (
           <div className="text-center">Loading...</div>
         ) : error ? (
@@ -126,17 +141,16 @@ useEffect(() => {
                 const aStatus = (a.status || "").toLowerCase();
                 const bStatus = (b.status || "").toLowerCase();
 
-              
                 const orderPriority = (status) => {
                   if (status === "ready") return 2;
                   if (status === "completed") return 3;
-                  return 1; 
+                  return 1;
                 };
 
-                const priorityDiff = orderPriority(aStatus) - orderPriority(bStatus);
+                const priorityDiff =
+                  orderPriority(aStatus) - orderPriority(bStatus);
                 if (priorityDiff !== 0) return priorityDiff;
 
-            
                 const aTime = new Date(a.createdAt || 0).getTime();
                 const bTime = new Date(b.createdAt || 0).getTime();
                 return bTime - aTime;
@@ -147,20 +161,21 @@ useEffect(() => {
                 return (
                   <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
                     <div
-                      className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${order.status?.toLowerCase() === "ready"
+                      className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${
+                        order.status?.toLowerCase() === "ready"
                           ? "bg-success bg-opacity-10"
                           : order.status?.toLowerCase() === "completed"
-                            ? "bg-primary bg-opacity-10"
-                            : "bg-white"
-                        }`}
+                          ? "bg-primary bg-opacity-10"
+                          : "bg-white"
+                      }`}
                     >
                       <Badge
                         bg={
                           order.status?.toLowerCase() === "ready"
                             ? "success"
                             : order.status?.toLowerCase() === "completed"
-                              ? "primary"
-                              : "danger"
+                            ? "primary"
+                            : "danger"
                         }
                         className="position-absolute top-0 end-0 m-2 px-2 py-1 rounded-pill text-capitalize"
                         style={{ fontSize: "0.75rem", zIndex: 10 }}
@@ -192,11 +207,16 @@ useEffect(() => {
                             >
                               <div>
                                 <div className="fw-semibold" style={lineStyle}>
-                                  {item.quantity}x {item.name || item.menuItem}
+                                  {item.quantity}x{" "}
+                                  {item.name || item.menuItem}
                                 </div>
                                 <div className="d-flex align-items-center gap-1 mt-1 flex-wrap">
                                   <span
-                                    className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"} mt-1`}
+                                    className={`badge bg-${
+                                      item.foodType === "Jain"
+                                        ? "success"
+                                        : "primary"
+                                    } mt-1`}
                                   >
                                     {item.foodType}
                                   </span>
@@ -231,14 +251,14 @@ useEffect(() => {
                         {!["ready", "canceled"].includes(
                           order.status?.toLowerCase()
                         ) && (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleMarkCompleted(order.orderId)}
-                            >
-                              Mark Ready
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleMarkCompleted(order.orderId)}
+                          >
+                            Mark Ready
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Col>
@@ -247,6 +267,9 @@ useEffect(() => {
           </Row>
         )}
       </div>
+
+      {/* 🔊 Sound Notification */}
+      <audio ref={audioRef} src={sounds} preload="auto" />
     </div>
   );
 };

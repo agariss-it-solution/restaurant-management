@@ -64,6 +64,7 @@ app.post("/kitchen/orders/:id", updateOrderStatus);
 // ----- Bill Routes -----
 app.post("/bills/:billId", payBill.payBill);
 app.get("/bills/unpaid", payBill.getAllUnpaidBills);
+app.put("/bills/update/:billId", payBill.updateBill);
 
 app.get("/bills", payBill.getAllBills);
 app.get("/bills/:billId", payBill.getBill);

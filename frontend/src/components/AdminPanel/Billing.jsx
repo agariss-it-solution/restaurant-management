@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiCheckCircle, FiCreditCard, FiPrinter } from "react-icons/fi";
-import { getAllBills,fetchSettings, payBill, getAnalytics } from "../config/api";
+import { getAllBills, fetchSettings, payBill, getAnalytics } from "../config/api";
 import { useNavigate } from "react-router-dom";
 import { Button, Modal } from "react-bootstrap";
 import QRScannerModal from "./QRScannerModal";
@@ -14,6 +14,10 @@ function BillingRevenue() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [paymentType, setPaymentType] = useState("");
   const [selectedBillId, setSelectedBillId] = useState(null);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+  const [splitAmounts, setSplitAmounts] = useState({ cash: '', online: '' });
+  const [splitBillId, setSplitBillId] = useState(null);
+
 
   const [data, setData] = useState({
     todayRevenue: "0.00",
@@ -66,70 +70,156 @@ function BillingRevenue() {
     } catch (err) {
       console.error(err);
     }
-   
+
   };
-const handlePrint = async (billId, mode = "print") => {
-  // ✅ OPEN PRINT WINDOW IMMEDIATELY to avoid Android popup blocking
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert("Popup blocked. Please allow popups to print the bill.");
+  
+const handleSplitPayment = async () => {
+  if (!splitBillId) return;
+
+  // console.log("splitAmounts at payment:", splitAmounts);
+
+  const cashAmount = parseFloat(splitAmounts.cash);
+  const onlineAmount = parseFloat(splitAmounts.online);
+
+  // console.log("cashAmount:", cashAmount, "onlineAmount:", onlineAmount);
+
+  if (isNaN(cashAmount) || isNaN(onlineAmount)) {
+    alert("Please enter valid numbers for split amounts.");
     return;
   }
 
-  // 🧠 Use loading message while fetching data
-  printWindow.document.write("<p>Loading bill...</p>");
-  printWindow.document.close();
-
-  // Fetch restaurant settings
-  let settings = {
-    restaurantName: "MK's Food",
-    address: "123 Main Street, City",
-    phoneNumber: "9876543210",
-    logo: ""
-  };
-
-  try {
-    const response = await fetchSettings();
-    settings.restaurantName = response.restaurantName || settings.restaurantName;
-    settings.address = response.address || settings.address;
-    settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
-
-    if (response.logo) {
-      const logoResp = await fetch(response.logo);
-      const blob = await logoResp.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      settings.logo = await new Promise(resolve => {
-        reader.onloadend = () => resolve(reader.result);
-      });
-    }
-    console.log('settings.logo', settings.logo)
-  } catch (err) {
-    console.error("Failed to fetch settings:", err);
+  const billData = bills.find(b => b._id === splitBillId);
+  if (!billData) {
+    alert("Bill not found.");
+    return;
   }
 
-  const billElement = document.getElementById(`bill-${billId}`);
-  if (!billElement) return;
+  const totalBillAmount = billData.orders.reduce((sum, order) =>
+    sum + order.items.reduce((osum, item) => {
+      if (item.isCancelled || item.quantity === 0) return osum;
+      return osum + item.Price * item.quantity;
+    }, 0), 0
+  );
 
-  const clonedBill = billElement.cloneNode(true);
-  clonedBill.querySelectorAll("button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge")
-    .forEach(el => el.remove());
+  if ((cashAmount + onlineAmount).toFixed(2) !== totalBillAmount.toFixed(2)) {
+    alert(`Split amounts must add up exactly to total bill ₹${totalBillAmount.toFixed(2)}`);
+    return;
+  }
 
-  const billData = bills.find(b => b._id === billId);
-  const calculateBillTotal = () => {
-    if (!billData) return 0;
-    return billData.orders.reduce((sum, order) => 
+  try {
+    const payload = {
+      paymentMethod: "split",
+      paymentAmounts: {
+        cash: cashAmount,
+        online: onlineAmount,
+      },
+    };
+
+
+    const updatedBill = await payBill(splitBillId, payload);
+
+    setBills(prevBills =>
+      prevBills.map(bill =>
+        bill._id === splitBillId ? { ...bill, status: updatedBill.status || "Paid" } : bill
+      )
+    );
+
+    setShowSplitModal(false);
+    setSplitBillId(null);
+    setSplitAmounts({ cash: '', online: '' });
+
+  } catch (err) {
+    console.error("Split payment failed:", err);
+    alert("Payment failed. Please try again.");
+  }
+};
+
+
+
+
+
+  const openSplitModal = (billId) => {
+    const billData = bills.find(b => b._id === billId);
+    if (!billData) return;
+
+    const totalBillAmount = billData.orders.reduce((sum, order) =>
       sum + order.items.reduce((osum, item) => {
         if (item.isCancelled || item.quantity === 0) return osum;
         return osum + item.Price * item.quantity;
       }, 0), 0
     );
+
+    setSplitBillId(billId);
+    setSplitAmounts({ cash: totalBillAmount.toFixed(2), online: "0.00" }); // Must be strings representing numbers!
+    setShowSplitModal(true);
   };
 
-  const totalAmount = calculateBillTotal();
 
-  // ✅ Print HTML content
-  const contentHTML = `
+
+
+  const handlePrint = async (billId, mode = "print") => {
+    // ✅ OPEN PRINT WINDOW IMMEDIATELY to avoid Android popup blocking
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Popup blocked. Please allow popups to print the bill.");
+      return;
+    }
+
+    // 🧠 Use loading message while fetching data
+    printWindow.document.write("<p>Loading bill...</p>");
+    printWindow.document.close();
+
+    // Fetch restaurant settings
+    let settings = {
+      restaurantName: "MK's Food",
+      address: "123 Main Street, City",
+      phoneNumber: "9876543210",
+      logo: ""
+    };
+
+    try {
+      const response = await fetchSettings();
+      settings.restaurantName = response.restaurantName || settings.restaurantName;
+      settings.address = response.address || settings.address;
+      settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
+      settings.qr = response.qr || settings.qr;
+
+      if (response.logo) {
+        const logoResp = await fetch(response.logo);
+        const blob = await logoResp.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        settings.logo = await new Promise(resolve => {
+          reader.onloadend = () => resolve(reader.result);
+        });
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
+    }
+
+    const billElement = document.getElementById(`bill-${billId}`);
+    if (!billElement) return;
+
+    const clonedBill = billElement.cloneNode(true);
+    clonedBill.querySelectorAll("button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge")
+      .forEach(el => el.remove());
+
+    const billData = bills.find(b => b._id === billId);
+    const calculateBillTotal = () => {
+      if (!billData) return 0;
+      return billData.orders.reduce((sum, order) =>
+        sum + order.items.reduce((osum, item) => {
+          if (item.isCancelled || item.quantity === 0) return osum;
+          return osum + item.Price * item.quantity;
+        }, 0), 0
+      );
+    };
+
+    const totalAmount = calculateBillTotal();
+
+    // ✅ Print HTML content
+    const contentHTML = `
     <div style="width: 80mm; max-width: 100%; margin: auto; font-family: Arial; font-size: 12px; color: #222; border: 1px solid #ddd; padding: 15px;">
       <div style="text-align: center; margin-bottom: 10px;">
         ${settings.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 70px; height: auto; margin-bottom: 8px;">` : ""}
@@ -178,9 +268,9 @@ const handlePrint = async (billId, mode = "print") => {
     </div>
   `;
 
-  // ✅ Write final HTML to the opened window
-  printWindow.document.open();
-  printWindow.document.write(`
+    // ✅ Write final HTML to the opened window
+    printWindow.document.open();
+    printWindow.document.write(`
     <html>
       <head>
         <title>Print Bill</title>
@@ -211,26 +301,26 @@ const handlePrint = async (billId, mode = "print") => {
       <body>${contentHTML}</body>
     </html>
   `);
-  printWindow.document.close();
+    printWindow.document.close();
 
-  // ✅ Wait a bit before printing (helps Android render)
-  printWindow.onload = () => {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
+    // ✅ Wait a bit before printing (helps Android render)
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
 
-      // Fallbacks
-      printWindow.onafterprint = () => printWindow.close();
+        // Fallbacks
+        printWindow.onafterprint = () => printWindow.close();
 
-      if (printWindow.matchMedia) {
-        const mediaQueryList = printWindow.matchMedia('print');
-        mediaQueryList.addListener(mql => {
-          if (!mql.matches) printWindow.close();
-        });
-      }
-    }, 700); // 500-1000ms delay helps on Android
+        if (printWindow.matchMedia) {
+          const mediaQueryList = printWindow.matchMedia('print');
+          mediaQueryList.addListener(mql => {
+            if (!mql.matches) printWindow.close();
+          });
+        }
+      }, 700); // 500-1000ms delay helps on Android
+    };
   };
-};
 
 
   const toggleExpand = (oi) => {
@@ -249,13 +339,14 @@ const handlePrint = async (billId, mode = "print") => {
     if (paymentType === "Cash") {
       handlePay(selectedBillId, "Cash");
     } else if (paymentType === "Online") {
-      // setShowScanner(true);
+      setShowScanner(true);  // <== Make sure this is active!
       setScanningBillId(selectedBillId);
     }
 
     setShowConfirm(false);
     setSelectedBillId(null);
   };
+
 
   const summaryItems = [
     { label: "Today's Revenue", value: `₹${data.todayRevenue}`, text: "text-success" },
@@ -267,17 +358,17 @@ const handlePrint = async (billId, mode = "print") => {
   return (
     <div className="container-fluid p-1">
       {/* Top Navigation */}
-<div className="d-flex pt-3 flex-column-reverse flex-md-row justify-content-between align-items-end mb-4 gap-2 ps-2">
-  <h3 className="fw-bold text-center text-md-start mb-0">
-    Billing & Revenue Management
-  </h3>
-  <button
-    className="btn btn-outline-primary"
-    onClick={() => navigate("/admin/order-history")}
-  >
-   Bill History
-  </button>
-</div>
+      <div className="d-flex pt-3 flex-column-reverse flex-md-row justify-content-between align-items-end mb-4 gap-2 ps-2">
+        <h3 className="fw-bold text-center text-md-start mb-0">
+          Billing & Revenue Management
+        </h3>
+        <button
+          className="btn btn-outline-primary"
+          onClick={() => navigate("/admin/order-history")}
+        >
+          Bill History
+        </button>
+      </div>
 
 
 
@@ -367,6 +458,14 @@ const handlePrint = async (billId, mode = "print") => {
                           <FiCreditCard className="me-2" />Pay Online
                         </button>
                         <button
+                          className="btn btn-warning flex-fill"
+                          onClick={() => openSplitModal(bill._id)}
+                        >
+                          Split Pay
+                        </button>
+
+
+                        <button
                           className="btn btn-secondary flex-fill"
                           onClick={() => handlePrint(bill._id)}
                           aria-label="Print Bill"
@@ -455,6 +554,96 @@ const handlePrint = async (billId, mode = "print") => {
             onClick={confirmPay}
           >
             Yes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal
+        show={showSplitModal}
+        onHide={() => setShowSplitModal(false)}
+        centered
+        size="md"
+        backdrop="static"
+        keyboard={false}
+        contentClassName="rounded-4 shadow p-3"
+      >
+        <Modal.Header className="border-0">
+          <Modal.Title className="fw-bold text-center w-100">
+            Split Payment
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Enter amounts to pay via Cash and Online:</p>
+          <div className="mb-3">
+            <label className="form-label">Cash Amount</label>
+            <input
+              type="number"
+              className="form-control"
+              value={splitAmounts.cash}
+              min="0"
+              step="0.01"
+              onChange={(e) => {
+                const val = e.target.value;
+                const billData = bills.find(b => b._id === splitBillId);
+                if (!billData) return;
+
+                const totalBillAmount = billData.orders.reduce((sum, order) =>
+                  sum + order.items.reduce((osum, item) => {
+                    if (item.isCancelled || item.quantity === 0) return osum;
+                    return osum + item.Price * item.quantity;
+                  }, 0), 0
+                );
+
+                const cashVal = parseFloat(val) || 0;
+
+                setSplitAmounts({
+                  cash: val,
+                  online: (totalBillAmount - cashVal).toFixed(2),
+                });
+              }}
+            />
+
+
+
+
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Online Amount</label>
+          <input
+  type="number"
+  className="form-control"
+  value={splitAmounts.online}
+  min="0"
+  step="0.01"
+  onChange={(e) => {
+    const val = e.target.value;
+    const billData = bills.find(b => b._id === splitBillId);
+    if (!billData) return;
+
+    const totalBillAmount = billData.orders.reduce((sum, order) =>
+      sum + order.items.reduce((osum, item) => {
+        if (item.isCancelled || item.quantity === 0) return osum;
+        return osum + item.Price * item.quantity;
+      }, 0), 0
+    );
+
+    const onlineVal = parseFloat(val) || 0;
+
+    setSplitAmounts({
+      online: val,
+      cash: (totalBillAmount - onlineVal).toFixed(2),
+    });
+  }}
+/>
+
+
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="d-flex justify-content-center border-0">
+          <Button variant="outline-secondary" className="px-4 rounded-pill" onClick={() => setShowSplitModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="warning" className="px-4 rounded-pill" onClick={handleSplitPayment}>
+            Pay
           </Button>
         </Modal.Footer>
       </Modal>

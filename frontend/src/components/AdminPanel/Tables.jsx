@@ -2,12 +2,13 @@ import React, { useEffect, useState } from "react";
 import { FiUsers, FiTrash2, FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { fetchTables, createTable, deleteTable } from "../config/api";
+import { toast } from "react-toastify";
 
 function TableManagement() {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
   const [previousStatuses, setPreviousStatuses] = useState({});
-  const [highlightedTable, setHighlightedTable] = useState(null); 
+  const [highlightedTable, setHighlightedTable] = useState(null);
   const navigate = useNavigate();
 
   // Fetch tables on mount
@@ -18,36 +19,31 @@ function TableManagement() {
         setTables(data);
       } catch (error) {
         console.error("⚠️ Failed to load tables:", error);
+        toast.error("⚠️ Failed to load tables. Please try again.");
       }
     };
     loadTables();
   }, []);
 
   const handleTableClick = (table) => {
-   
     if (table.status === "Occupied" && highlightedTable?._id !== table._id) {
-      setHighlightedTable(table); 
+      setHighlightedTable(table);
     } else if (table.status !== "Occupied") {
-      setHighlightedTable(null); 
+      setHighlightedTable(null);
     }
-
 
     if (table.status === "Open") {
       navigate(`/admin/adminmenu/${table._id}`);
       return;
     }
 
-   
     const updatedTables = tables.map((t) => {
       if (t._id === table._id) {
         return { ...t, status: "Open" };
       }
-
-   
       if (t.status === "Open" && previousStatuses[t._id]) {
         return { ...t, status: previousStatuses[t._id] };
       }
-
       return t;
     });
 
@@ -72,37 +68,39 @@ function TableManagement() {
       });
 
       setTables([...tables, newTable]);
+      toast.success(`Table ${nextNumber} added successfully.`);
     } catch (error) {
       console.error("⚠️ Error adding table:", error);
+      toast.error("⚠️ Error adding table. Please try again.");
     }
   };
 
-// Delete selected table
-const handleDeleteTable = async () => {
-  if (!selectedTable) return;
+  // Delete selected table
+  const handleDeleteTable = async () => {
+    if (!selectedTable) return;
 
-  // 🔒 Prevent deleting occupied or highlighted (yellow) tables
-  if (
-    selectedTable.status === "Occupied" ||
-    (highlightedTable && highlightedTable._id === selectedTable._id)
-  ) {
-    alert(
-      `⚠️ Table ${selectedTable.number} cannot be deleted while it is ${
-        selectedTable.status === "Occupied" ? "occupied" : "highlighted"
-      }.`
-    );
-    return;
-  }
+    // 🔒 Prevent deleting occupied or highlighted (yellow) tables
+    if (
+      selectedTable.status === "Occupied" ||
+      (highlightedTable && highlightedTable._id === selectedTable._id)
+    ) {
+      toast.warn(
+        `⚠️ Table ${selectedTable.number} cannot be deleted while it is ${selectedTable.status === "Occupied" ? "occupied" : "highlighted"
+        }.`
+      );
+      return;
+    }
 
-  try {
-    await deleteTable(selectedTable._id);
-    setTables(tables.filter((t) => t._id !== selectedTable._id));
-    setSelectedTable(null);
-  } catch (error) {
-    console.error("⚠️ Error deleting table:", error);
-  }
-};
-
+    try {
+      await deleteTable(selectedTable._id);
+      setTables(tables.filter((t) => t._id !== selectedTable._id));
+      toast.success(`✅ Table ${selectedTable.number} deleted successfully.`);
+      setSelectedTable(null);
+    } catch (error) {
+      console.error("⚠️ Error deleting table:", error);
+      toast.error("⚠️ Error deleting table. Please try again.");
+    }
+  };
 
   return (
     <div className="container py-5">
@@ -148,33 +146,32 @@ const handleDeleteTable = async () => {
           return (
             <div key={table._id} className="col-6 col-sm-4 col-md-3">
               <div
-                className={`text-center p-3 rounded shadow-sm ${
-                  table.status === "Open"
+                className={`text-center p-3 rounded shadow-sm ${table.status === "Open"
                     ? "bg-success bg-opacity-10 border border-success"
                     : table.status === "Occupied"
-                    ? "bg-danger bg-opacity-10 border border-danger"
-                    : "bg-white"
-                } ${isHighlighted ? "bg-warning bg-opacity-40" : ""}`}
+                      ? "bg-danger bg-opacity-10 border border-danger"
+                      : "bg-white"
+                  } ${isHighlighted ? "bg-warning bg-opacity-40" : ""}`}
                 onClick={() => handleTableClick(table)}
                 style={{ cursor: "pointer" }}
               >
                 <div
                   className={`fs-2 ${table.status === "Open"
-                    ? "text-success"
-                    : table.status === "Occupied"
-                    ? "text-danger"
-                    : "text-dark fw-medium"
+                      ? "text-success"
+                      : table.status === "Occupied"
+                        ? "text-danger"
+                        : "text-dark fw-medium"
                     }`}
                 >
                   <FiUsers />
                 </div>
                 <div className="fw-bold">Table {table.number}</div>
                 <div
-                  className={`badge mt-1 ${table.status === "Open"
-                    ? "bg-success text-white"
-                    : table.status === "Occupied"
-                    ? "bg-danger text-white"
-                    : "bg-light text-dark fw-medium"
+                  className={`badge mt-1 ${table.status === "Open"  
+                      ? "bg-success text-white"
+                      : table.status === "Occupied"
+                        ? "bg-danger text-white"
+                        : "bg-light text-dark fw-medium"
                     }`}
                 >
                   {table.status}

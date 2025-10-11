@@ -465,18 +465,37 @@ export const getAllBills = async () => {
   }
 };
 // Pay bill (cash or online) via POST
-export const payBill = async (billId, method) => {
+export const payBill = async (billId, payment) => {
   if (!billId) throw new Error("Bill ID is required");
   const token = getToken();
   if (!token) throw new Error("No token found");
 
+  let bodyPayload;
+
+  if (typeof payment === "string") {
+    bodyPayload = { paymentMethod: payment.toLowerCase() };
+  } else if (typeof payment === "object" && payment !== null) {
+    // Here payment is the whole payload {paymentMethod: "split", paymentAmounts: { cash, online }}
+    bodyPayload = {
+      paymentMethod: payment.paymentMethod ?? "split",
+      paymentAmounts: {
+        cash: payment.paymentAmounts?.cash ?? 0,
+        online: payment.paymentAmounts?.online ?? 0,
+      },
+    };
+  } else {
+    throw new Error("Invalid payment format");
+  }
+
+  // console.log("payBill bodyPayload:", bodyPayload);
+
   const res = await fetch(`${API_URL}/bills/${billId}`, {
-    method: "POST", // POST instead of PUT
+    method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ paymentMethod: method }), // send payment method
+    body: JSON.stringify(bodyPayload),
   });
 
   if (!res.ok) {
@@ -484,8 +503,32 @@ export const payBill = async (billId, method) => {
     throw new Error(errorData.message || `Failed to pay bill (Status ${res.status})`);
   }
 
-  return await res.json(); // { message, data: {...updated bill...} }
+  return await res.json();
 };
+  export const updateBill = async (billId, payload) => {
+    if (!billId) throw new Error("Bill ID required");
+
+    const token = getToken(); // if you're using auth
+    const res = await fetch(`${API_URL}/bills/update/${billId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "Failed to update bill");
+    }
+
+    return res.json();
+  };
+
+
+
 
 
 export const getAnalytics = async (params = {}) => {
@@ -496,7 +539,7 @@ export const getAnalytics = async (params = {}) => {
     // Build query string dynamically (e.g., ?month=09&year=2025)
     const query = new URLSearchParams(params).toString();
     const url = `${API_URL}/analytics${query ? `?${query}` : ""}`;
-    console.log("url", url);
+    // console.log("url", url);
 
     const res = await fetch(url, {
       method: "GET",
@@ -528,7 +571,7 @@ export const getAnalyticsfilter = async (params = {}) => {
     // Build query string dynamically (e.g., ?month=09&year=2025)
     const query = new URLSearchParams(params).toString();
     const url = `${API_URL}/analyticsfilter${query ? `?${query}` : ""}`;
-    // console.log("url",url);
+    ;
 
     const res = await fetch(url, {
       method: "GET",
@@ -663,14 +706,14 @@ export const updateOrderItem = async ({ orderId, itemId, newQuantity }) => {
 
   try {
     const token = getToken(); // get token from localStorage/session/etc
-    console.log(token);
+    // console.log(token);
 
     if (!token) {
       throw new Error("No auth token found");
     }
 
     const payload = { orderId, itemId, newQuantity };
-    console.log("📤 Sending payload:", payload);
+    // console.log("📤 Sending payload:", payload);
 
     const response = await fetch(`${API_URL}/ordersupdate`, {
       method: "POST",
@@ -681,9 +724,9 @@ export const updateOrderItem = async ({ orderId, itemId, newQuantity }) => {
       body: JSON.stringify(payload),
     });
 
-    console.log("📡 Response status:", response.status);
+    // console.log("📡 Response status:", response.status);
     const data = await response.json().catch(() => ({}));
-    console.log("📥 Response data:", data);
+    // console.log("📥 Response data:", data);
 
     if (!response.ok) {
       throw new Error(data.message || `Failed to update order item (status ${response.status})`);
@@ -785,6 +828,7 @@ export const getAllPaidBills = async () => {
         createdAt: bill.createdAt,
         status: bill.status,
         orderId: bill._id,
+        discountValue: bill.discountValue || 0,
         paymentMethod: bill.paymentMethod,
         items: (order.items || []).filter(item => !item.isCancelled)
       })) || []
