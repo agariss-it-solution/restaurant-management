@@ -180,10 +180,10 @@ const OrderCard = () => {
               <div key={order.orderId || idx} className="col-12 col-sm-6 col-lg-3 mb-4">
                 <div
                   className={`border rounded shadow-sm p-3 h-100 d-flex flex-column justify-content-between position-relative ${isReady
-                      ? "bg-success bg-opacity-10"
-                      : order.status?.toLowerCase() === "completed"
-                        ? "bg-primary bg-opacity-10"
-                        : "bg-white"
+                    ? "bg-success bg-opacity-10"
+                    : order.status?.toLowerCase() === "completed"
+                      ? "bg-primary bg-opacity-10"
+                      : "bg-white"
                     }`}
                   style={{ minHeight: "350px" }}
                 >
@@ -191,7 +191,9 @@ const OrderCard = () => {
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <div>
                       <strong className="fs-6">
-                        Table {order.tableNumber || order.table}
+                        {order.customerName
+                          ? order.customerName
+                          : `Table ${order.tableNumber || order.table}`}
                       </strong>
                       <div className="text-dark fw-medium small">
                         Order ID: #{order.orderId}

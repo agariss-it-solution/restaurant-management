@@ -115,7 +115,7 @@ const createOrder = async (req, res) => {
     }
 
     try {
-        const { table, items, orderType } = req.body;
+        const { table, items, orderType, customerName } = req.body;
 
         if (!Array.isArray(items) || items.length === 0) {
             return Response.Error({
@@ -188,6 +188,8 @@ const createOrder = async (req, res) => {
             items: orderItems,
             totalPrice: totalPrice, // ✅ correct field
             orderType: orderType || "Dine-in",
+            customerName: customerName?.trim() || (orderType === "Takeaway" ? "Guest" : null), // ✅ save customerName
+            tableNumber: orderType === "Takeaway" ? "Takeaway" : tableDoc?.number,
         });
 
         await newOrder.save();
@@ -205,6 +207,7 @@ const createOrder = async (req, res) => {
                 totalAmount: 0,
                 status: "Unpaid",
                 orderType: orderType || "Dine-in",
+                customerName: customerName?.trim() || (orderType === "Takeaway" ? "Guest" : null),
             });
         }
 
@@ -265,6 +268,7 @@ const getKitchenOrders = async (req, res) => {
                 tableNumber: bill.table?.number,
                 orderId: order._id,
                 status: order.status,
+                customerName: order.customerName,
                 createdAt: order.createdAt,
                 items: order.items.map(item => ({
                     itemId: item._id,                   // ✅ Item's unique ID

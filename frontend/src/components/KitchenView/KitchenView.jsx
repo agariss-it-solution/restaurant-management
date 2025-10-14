@@ -161,21 +161,20 @@ const KitchenDisplay = () => {
                 return (
                   <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
                     <div
-                      className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${
-                        order.status?.toLowerCase() === "ready"
+                      className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${order.status?.toLowerCase() === "ready"
                           ? "bg-success bg-opacity-10"
                           : order.status?.toLowerCase() === "completed"
-                          ? "bg-primary bg-opacity-10"
-                          : "bg-white"
-                      }`}
+                            ? "bg-primary bg-opacity-10"
+                            : "bg-white"
+                        }`}
                     >
                       <Badge
                         bg={
                           order.status?.toLowerCase() === "ready"
                             ? "success"
                             : order.status?.toLowerCase() === "completed"
-                            ? "primary"
-                            : "danger"
+                              ? "primary"
+                              : "danger"
                         }
                         className="position-absolute top-0 end-0 m-2 px-2 py-1 rounded-pill text-capitalize"
                         style={{ fontSize: "0.75rem", zIndex: 10 }}
@@ -186,11 +185,11 @@ const KitchenDisplay = () => {
                       {/* Header */}
                       <div className="mb-2">
                         <strong className="fs-6">
-                          Table {order.tableNumber || order.table}
+                          {order.customerName
+                            ? order.customerName // Show customer name for Takeaway
+                            : `Table ${order.tableNumber || order.table}`} 
                         </strong>
-                        <div className="text-dark fw-medium small">
-                          Order ID: #{order.orderId}
-                        </div>
+
                       </div>
 
                       {/* Items */}
@@ -212,11 +211,10 @@ const KitchenDisplay = () => {
                                 </div>
                                 <div className="d-flex align-items-center gap-1 mt-1 flex-wrap">
                                   <span
-                                    className={`badge bg-${
-                                      item.foodType === "Jain"
+                                    className={`badge bg-${item.foodType === "Jain"
                                         ? "success"
                                         : "primary"
-                                    } mt-1`}
+                                      } mt-1`}
                                   >
                                     {item.foodType}
                                   </span>
@@ -251,14 +249,14 @@ const KitchenDisplay = () => {
                         {!["ready", "canceled"].includes(
                           order.status?.toLowerCase()
                         ) && (
-                          <Button
-                            size="sm"
-                            variant="success"
-                            onClick={() => handleMarkCompleted(order.orderId)}
-                          >
-                            Mark Ready
-                          </Button>
-                        )}
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => handleMarkCompleted(order.orderId)}
+                            >
+                              Mark Ready
+                            </Button>
+                          )}
                       </div>
                     </div>
                   </Col>

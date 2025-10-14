@@ -67,6 +67,21 @@ function Dashboard() {
 
       {/* Action Cards */}
       <div className="row g-3 mb-4">
+          <div className="col-12 col-md-3">
+          <Link
+            to="/admin/takeaway"  
+            className="text-decoration-none"
+            style={{ color: "inherit" }}
+          >
+            <div className="p-4 bg-white shadow-sm rounded-4 text-center h-100 card-hover">
+              <FiDollarSign className="fs-1 text-danger mb-2" />
+              <h5 className="fw-bold">Takeaway Orders</h5>
+              <p className="text-dark fw-medium small">
+                Manage and bill takeaway customer orders
+              </p>
+            </div>
+          </Link>
+        </div>
         <div className="col-12 col-md-3">
           <Link
             to="/admin/tables"
@@ -120,21 +135,7 @@ function Dashboard() {
             </div>
           </Link>
         </div>
-        <div className="col-12 col-md-3">
-          <Link
-            to="/admin/takeaway"  
-            className="text-decoration-none"
-            style={{ color: "inherit" }}
-          >
-            <div className="p-4 bg-white shadow-sm rounded-4 text-center h-100 card-hover">
-              <FiDollarSign className="fs-1 text-danger mb-2" />
-              <h5 className="fw-bold">Takeaway Orders</h5>
-              <p className="text-dark fw-medium small">
-                Manage and bill takeaway customer orders
-              </p>
-            </div>
-          </Link>
-        </div>
+      
 
       </div>
     </div>

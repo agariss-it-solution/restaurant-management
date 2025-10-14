@@ -361,7 +361,7 @@ function BillingRevenue() {
     setSelectedBillId(billId);
     setSelectedBillAmount(billTotal);
     setShowConfirm(true);
-     setPaymentType("");
+    setPaymentType("");
   };
 
 
@@ -373,9 +373,9 @@ function BillingRevenue() {
     } else if (paymentType === "Online") {
       const billData = bills.find(b => b._id === selectedBillId);
       if (billData) {
-        setSelectedBill({ 
-          ...billData, 
-          total: selectedBillAmount 
+        setSelectedBill({
+          ...billData,
+          total: selectedBillAmount
         });
       }
       setShowScanner(true);
@@ -443,9 +443,14 @@ function BillingRevenue() {
                   return (
                     <div key={bill._id} id={`bill-${bill._id}`} className="mb-4">
                       <div className="d-flex justify-content-between fw-bold">
-                        <span>Table {bill.table?.number || "-"}</span>
+                        <span>
+                          {bill.customerName
+                            ? bill.customerName // Show customer name for Takeaway
+                            : `Table ${bill.table?.number || "-"}`} 
+                        </span>
                         <span className="text-danger">₹{billTotal.toFixed(2)}</span>
                       </div>
+
 
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         <small>Order #{bill.orderNumber || bill._id}</small>
@@ -748,7 +753,7 @@ function BillingRevenue() {
         showScanner={showScanner}
         setShowScanner={setShowScanner}
         scanningBillId={scanningBillId}
-         paymentMode="Online"
+        paymentMode="Online"
         setScanningBillId={setScanningBillId}
         handlePay={async (billId) => {
           try {

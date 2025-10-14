@@ -21,10 +21,13 @@ const orderSchema = new mongoose.Schema(
       enum: ["Dine-in", "Takeaway"],
       default: "Dine-in",
     },
+    customerName: {
+      type: String
+    },
     table: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Table",
-      required: function() { return this.orderType !== "Takeaway"; },
+      required: function () { return this.orderType !== "Takeaway"; },
     },
     items: {
       type: [orderItemSchema],

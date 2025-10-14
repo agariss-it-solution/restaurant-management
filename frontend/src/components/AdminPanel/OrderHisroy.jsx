@@ -578,30 +578,37 @@ const OrderCard = () => {
                         {order.status || "New"}
                         {/* {order.paymentMethod || "New"} */}
                       </Badge>
-                       {order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts ? (
-                        <div className="d-flex flex-column align-items-end gap-1">
-                          <Badge bg="primary" className="px-2 py-1 rounded-pill">
-                            Split Payment
-                          </Badge>
-                          <div className="d-flex flex-column gap-1">
-                            {order.paymentAmounts.cash > 0 && (
-                              <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
-                                Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
-                              </Badge>
-                            )}
-                            {order.paymentAmounts.online > 0 && (
-                              <Badge bg="info" className="px-2 py-1 rounded-pill">
-                                Online: ₹{order.paymentAmounts.online.toFixed(2)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
-                          {order.paymentMethod || "Cash"}
-                        </Badge>
-                      )}
-
+                      {order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0) ? (
+    <>
+      <Badge bg="primary" className="px-2 py-1 rounded-pill">
+        Split Payment
+      </Badge>
+      <div className="d-flex flex-column gap-1 mt-1">
+        {order.paymentAmounts.cash > 0 && (
+          <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
+            Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
+          </Badge>
+        )}
+        {order.paymentAmounts.online > 0 && (
+          <Badge bg="info" className="px-2 py-1 rounded-pill">
+            Online: ₹{order.paymentAmounts.online.toFixed(2)}
+          </Badge>
+        )}
+      </div>
+    </>
+  ) : order.paymentMethod?.toLowerCase() === "cash" ? (
+    <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
+      Cash: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
+    </Badge>
+  ) : order.paymentMethod?.toLowerCase() === "online" ? (
+    <Badge bg="info" className="px-2 py-1 rounded-pill">
+      Online: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
+    </Badge>
+  ) : (
+    <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
+      {order.paymentMethod || "Cash"}
+    </Badge>
+  )}
 
 
                       <Button

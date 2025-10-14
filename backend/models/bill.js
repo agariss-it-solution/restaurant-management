@@ -9,7 +9,9 @@ const billSchema = new mongoose.Schema({
         enum: ["Dine-in", "Takeaway"],
         default: "Dine-in",
     },
-
+    customerName: {
+        type: String
+    },
     totalAmount: {
         type: Number,
         required: true,
@@ -26,10 +28,10 @@ const billSchema = new mongoose.Schema({
         default: 0,
     },
 
-    status: { 
-        type: String, 
-        enum: ["Unpaid", "Paid", "Canceled"], 
-        default: "Unpaid" 
+    status: {
+        type: String,
+        enum: ["Unpaid", "Paid", "Canceled"],
+        default: "Unpaid"
     },
 
     paymentMethod: {

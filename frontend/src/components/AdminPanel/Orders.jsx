@@ -18,6 +18,7 @@ const OrderCard = () => {
         const normalizedOrders = (data.data || []).map((order) => ({
           ...order,
           orderId: order.orderId || order._id,
+          customerName: order.customerName,
           items: (order.items || []).map((item, index) => ({
             ...item,
             itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
@@ -25,6 +26,7 @@ const OrderCard = () => {
             isCancelled: item.isCancelled || false,
           })),
         }));
+        console.log('data.data', normalizedOrders)
         setOrders(normalizedOrders);
         const clone = normalizedOrders.map((o) => structuredClone(o));
         setOriginalOrders(clone);
@@ -196,6 +198,7 @@ const OrderCard = () => {
                           : order.customerName
                             ? order.customerName
                             : "Takeaway"}
+                            {console.log('order.customerName', order)}
                       </strong>
                       <div className="text-dark fw-medium small">
                         Order ID: #{order.orderId}
@@ -211,7 +214,6 @@ const OrderCard = () => {
                       </Badge>
                     )}
                   </div>
-
                   {/* Items */}
                   <div className="mb-2 flex-grow-1 overflow-auto" style={{ maxHeight: "220px" }}>
                     {visibleItems.map((item, i) => {
