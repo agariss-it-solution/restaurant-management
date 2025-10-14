@@ -1,6 +1,6 @@
 // src/config/api.js
 import axios from "axios";
-const API_URL = "http://localhost:1020/v1/auth"; // Base URL for auth and tables
+const API_URL = "http://192.168.29.36:1020/v1/auth"; // Base URL for auth and tables
 
 // 🔹 Helper to get token
 const getToken = () => {
@@ -205,7 +205,7 @@ export const fetchTableById = async (tableId) => {
     const token = getToken();
     if (!token) throw new Error("No token found");
 
-    const response = await fetch(`${API_URL}/tables/${tableId}`, {
+    const response = await fetch(`${API_URL}/table/${tableId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -241,13 +241,14 @@ export const submitOrder = async (orderData) => {
       body: JSON.stringify(orderData),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to submit order");
+      throw new Error(result.message || "Failed to submit order");
     }
 
-    const result = await response.json();
-    return result;
+    // 🧠 Return order data only — no bill ID
+    return result.data?.order || result;
   } catch (error) {
     console.error("❌ Error submitting order:", error);
     throw error;
@@ -491,7 +492,7 @@ export const payBill = async (billId, payment) => {
 
   const res = await fetch(`${API_URL}/bills/${billId}`, {
     method: "POST",
-    headers: {
+    headers: {  
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
@@ -505,27 +506,27 @@ export const payBill = async (billId, payment) => {
 
   return await res.json();
 };
-export const updateBill = async (billId, payload) => {
-  if (!billId) throw new Error("Bill ID required");
+  export const updateBill = async (billId, payload) => {
+    if (!billId) throw new Error("Bill ID required");
 
-  const token = getToken(); // if you're using auth
-  const res = await fetch(`${API_URL}/bills/update/${billId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
+    const token = getToken(); // if you're using auth
+    const res = await fetch(`${API_URL}/bills/update/${billId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    
 
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || "Failed to update bill");
+    }
 
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.message || "Failed to update bill");
-  }
-
-  return res.json();
-};
+    return res.json();
+  };
 
 
 

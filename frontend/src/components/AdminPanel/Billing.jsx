@@ -609,7 +609,7 @@ function BillingRevenue() {
           <div className="mb-3">
             <label className="form-label">Cash Amount</label>
             <input
-              type="number"
+              type="text"
               className="form-control"
               value={splitAmounts.cash}
               min="0"
@@ -642,7 +642,7 @@ function BillingRevenue() {
           <div className="mb-3">
             <label className="form-label">Online Amount</label>
             <input
-              type="number"
+              type="text"
               className="form-control"
               value={splitAmounts.online}
               min="0"

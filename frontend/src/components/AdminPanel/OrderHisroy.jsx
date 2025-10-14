@@ -318,6 +318,29 @@ const OrderCard = () => {
     </tr>
   `).join("");
 
+    // Calculate subtotal
+    const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
+    const discountValue = order.discountValue || 0;
+    const finalTotal = subtotal - discountValue;
+
+    // Payment method section
+    let paymentSection = '';
+    if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
+      paymentSection = `
+        <div style="margin-top:10px; padding:10px; border:1px dashed #333;">
+          <strong>Payment Details (Split):</strong><br>
+          ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ₹${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
+          ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ₹${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
+        </div>
+      `;
+    } else {
+      paymentSection = `
+        <div style="margin-top:10px;">
+          <strong>Payment Method:</strong> ${order.paymentMethod || 'Cash'}
+        </div>
+      `;
+    }
+
     overlay.innerHTML = `
     <div style="max-width:400px; margin:auto;">
       <div style="text-align:center; margin-bottom:10px;">
@@ -329,8 +352,8 @@ const OrderCard = () => {
       </div>
       <div style="margin-bottom:10px;">
         <strong>Table:</strong> ${order.tableNumber || order.table}<br>
+        <strong>Order ID:</strong> #${order.orderId}<br>
         <strong>Time:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}<br>
-        ${order.paymentMethod ? `<strong>Payment:</strong> ${order.paymentMethod}<br>` : ""}
       </div>
       <table border="1" style="width:100%; border-collapse:collapse; margin-bottom:10px;">
         <thead>
@@ -345,9 +368,25 @@ const OrderCard = () => {
         </tbody>
       </table>
       <hr>
-      <strong>Total:</strong> ₹${order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0).toFixed(2)}
-      <div style="text-align:center; margin-top:10px;">
-        Thank you for visiting!<br>Please come again.
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+        <strong>Subtotal:</strong> 
+        <strong>₹${subtotal.toFixed(2)}</strong>
+      </div>
+      ${discountValue > 0 ? `
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc3545;">
+          <span>Discount:</span> 
+          <span>- ₹${discountValue.toFixed(2)}</span>
+        </div>
+      ` : ''}
+      <hr style="border-top:2px solid #000;">
+      <div style="display:flex; justify-content:space-between; font-size:18px; margin-bottom:10px;">
+        <strong>Total:</strong> 
+        <strong>₹${finalTotal.toFixed(2)}</strong>
+      </div>
+      ${paymentSection}
+      <div style="text-align:center; margin-top:15px; border-top:1px dashed #333; padding-top:10px;">
+        <strong>Thank you for visiting!</strong><br>
+        Please come again.
       </div>
     </div>
   `;
@@ -370,7 +409,7 @@ const OrderCard = () => {
         };
       });
 
-      // Fallback: if images don’t load in 3 seconds, still try printing
+      // Fallback: if images don't load in 3 seconds, still try printing
       setTimeout(() => {
         if (imagesLoaded < allImages.length) {
           console.warn("Images took too long to load. Proceeding to print anyway.");
@@ -539,14 +578,14 @@ const OrderCard = () => {
                         {order.status || "New"}
                         {/* {order.paymentMethod || "New"} */}
                       </Badge>
-                      {order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts ? (
-                        <div className="d-flex flex-column align-items-end">
-                          <Badge bg="primary" className="px-2 py-1 rounded-pill mb-1">
+                       {order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts ? (
+                        <div className="d-flex flex-column align-items-end gap-1">
+                          <Badge bg="primary" className="px-2 py-1 rounded-pill">
                             Split Payment
                           </Badge>
-                          <div className="d-flex flex-wrap gap-1 justify-content-end">
+                          <div className="d-flex flex-column gap-1">
                             {order.paymentAmounts.cash > 0 && (
-                              <Badge bg="warning" className="px-2 py-1 rounded-pill">
+                              <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
                                 Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
                               </Badge>
                             )}
@@ -558,8 +597,8 @@ const OrderCard = () => {
                           </div>
                         </div>
                       ) : (
-                        <Badge bg="success" className="px-2 py-1 rounded-pill text-capitalize">
-                          {order.paymentMethod || "Paid"}
+                        <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
+                          {order.paymentMethod || "Cash"}
                         </Badge>
                       )}
 

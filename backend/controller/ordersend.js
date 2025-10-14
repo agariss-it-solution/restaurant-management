@@ -110,33 +110,35 @@ const mongoose = require("mongoose");
 // };
 const createOrder = async (req, res) => {
     function capitalizeFirstLetter(string) {
-        if (!string) return "Regular"; // default to "Regular"
+        if (!string) return "Regular";
         return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
     }
 
     try {
-        const { table, items, orderType, customerName } = req.body;
+        const { table, items, orderType } = req.body;
 
-        if ((!table && orderType !== "Takeaway") || !Array.isArray(items) || items.length === 0) {
+        if (!Array.isArray(items) || items.length === 0) {
             return Response.Error({
                 res,
                 status: 400,
-                message: "Table (for Dine-In) or Takeaway and at least one item are required.",
+                message: "At least one item is required.",
             });
         }
 
-        // ✅ Determine if it's a Dine-In or Takeaway order
-        const isTakeaway = orderType === "Takeaway";
+        if (orderType !== "Takeaway" && !table) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Table is required for Dine-in orders.",
+            });
+        }
 
         let tableDoc = null;
-        if (!isTakeaway) {
-            // Dine-in: validate table
+        if (table) {
             tableDoc = await Table.findById(table);
             if (!tableDoc) {
                 return Response.Error({ res, status: 404, message: "Table not found" });
             }
-
-            // Set table status to Occupied
             if (tableDoc.status !== "Occupied") {
                 tableDoc.status = "Occupied";
                 await tableDoc.save();
@@ -146,7 +148,6 @@ const createOrder = async (req, res) => {
         const orderItems = [];
         let totalPrice = 0;
 
-        // 🧾 Build order items
         for (const item of items) {
             const { itemId, quantity, specialInstructions, foodType } = item;
             if (!itemId || !quantity) continue;
@@ -161,7 +162,6 @@ const createOrder = async (req, res) => {
 
             if (menuItem) {
                 const itemTotal = menuItem.Price * quantity;
-
                 orderItems.push({
                     menuItem: menuItem._id,
                     name: menuItem.name,
@@ -170,7 +170,6 @@ const createOrder = async (req, res) => {
                     specialInstructions: specialInstructions || "",
                     foodType: capitalizeFirstLetter(foodType),
                 });
-
                 totalPrice += itemTotal;
             }
         }
@@ -183,43 +182,36 @@ const createOrder = async (req, res) => {
             });
         }
 
-        // 🧾 Create new Order document
         const newOrder = new Order({
-            table: isTakeaway ? null : table,
+            table: table || null,
             status: "Pending",
             items: orderItems,
-            Price: totalPrice,
+            totalPrice: totalPrice, // ✅ correct field
+            orderType: orderType || "Dine-in",
         });
 
         await newOrder.save();
 
-        // 🧾 Find or create Bill
-        let bill;
-        if (isTakeaway) {
-            bill = new Bill({
-                orderType: "Takeaway",
-                customerName: customerName || "Walk-in Customer",
-                orders: [newOrder._id],
-                totalAmount: totalPrice,
-                status: "Unpaid",
-            });
-        } else {
+        let bill = null;
+        if (tableDoc) {
             bill = await Bill.findOne({ table, status: "Unpaid" });
-            if (!bill) {
-                bill = new Bill({
-                    orderType: "Dine-In",
-                    table,
-                    tableNumber: tableDoc?.number,
-                    orders: [newOrder._id],
-                    totalAmount: totalPrice,
-                    status: "Unpaid",
-                });
-            } else {
-                bill.orders.push(newOrder._id);
-                bill.totalAmount += totalPrice;
-            }
         }
 
+        if (!bill) {
+            bill = new Bill({
+                table: tableDoc || null,
+                tableNumber: tableDoc?.number,
+                orders: [],
+                totalAmount: 0,
+                status: "Unpaid",
+                orderType: orderType || "Dine-in",
+            });
+        }
+
+        if (!bill.orders.includes(newOrder._id)) {
+            bill.orders.push(newOrder._id);
+        }
+        bill.totalAmount += totalPrice;
         await bill.save();
 
         const populatedBill = await Bill.findById(bill._id).populate({
@@ -230,11 +222,10 @@ const createOrder = async (req, res) => {
         return Response.Success({
             res,
             status: 201,
-            message: isTakeaway
-                ? "Takeaway order created successfully"
-                : "Dine-in order created and added to bill",
+            message: "New order created and added to bill",
             data: { order: newOrder, bill: populatedBill },
         });
+
     } catch (err) {
         return Response.Error({
             res,
