@@ -8,7 +8,7 @@ const payBill = async (req, res) => {
     const { billId } = req.params;
     const { paymentMethod, paymentAmounts } = req.body;
 
-    // Fetch bill first
+    // Fetch bill from DB
     const bill = await Bill.findById(billId).populate({
       path: "table",
       select: "number",
@@ -22,10 +22,15 @@ const payBill = async (req, res) => {
       });
     }
 
-    // Allowed payment methods
-    const validMethods = ["online", "cash", "split"];
+    if (bill.status === "Paid") {
+      return Response.Error({
+        res,
+        status: 400,
+        message: "Bill is already marked as paid",
+      });
+    }
 
-    // Validate paymentMethod
+    const validMethods = ["online", "cash", "split"];
     if (!paymentMethod || !validMethods.includes(paymentMethod)) {
       return Response.Error({
         res,
@@ -34,57 +39,67 @@ const payBill = async (req, res) => {
       });
     }
 
-    if (bill.status === "Paid") {
+    // Validate bill total
+    const totalAmount = Math.round((bill.totalAmount + Number.EPSILON) * 100) / 100;
+    if (totalAmount <= 0) {
       return Response.Error({
         res,
         status: 400,
-        message: "Bill already paid",
+        message: "Cannot pay a bill with zero or negative total amount.",
       });
     }
 
-    if (bill.totalAmount <= 0) {
-      return Response.Error({
-        res,
-        status: 400,
-        message: "Cannot pay a bill with total amount 0. All items might be canceled.",
-      });
-    }
-
-    // If split payment, validate paymentAmounts object and sum
+    // Split Payment Handling
     if (paymentMethod === "split") {
-      const cashAmount = Number(paymentAmounts.cash || 0);
-      const onlineAmount = Number(paymentAmounts.online || 0);
-      const sum = cashAmount + onlineAmount;
+      const cash = Number(paymentAmounts?.cash ?? 0);
+      const online = Number(paymentAmounts?.online ?? 0);
+      const splitTotal = Math.round((cash + online + Number.EPSILON) * 100) / 100;
 
-      if (sum !== bill.totalAmount) {
+      if (splitTotal !== totalAmount) {
         return Response.Error({
           res,
           status: 400,
-          message: `Sum of split payments (${sum}) must equal bill total amount (${bill.totalAmount})`,
+          message: `Sum of split payments (${splitTotal}) must exactly match bill total (${totalAmount})`,
         });
       }
 
-      bill.paymentAmounts = { cash: cashAmount, online: onlineAmount };
+      bill.paymentMethod = "split";
+      bill.paymentAmounts = {
+        cash,
+        online,
+      };
+    } else {
+      // Single method: cash or online
+      const amount = Number(paymentAmounts?.amount ?? 0);
+      if (amount !== totalAmount) {
+        return Response.Error({
+          res,
+          status: 400,
+          message: `Payment amount (${amount}) must match bill total (${totalAmount})`,
+        });
+      }
+
+      bill.paymentMethod = paymentMethod;
+      bill.paymentAmounts = {
+        [paymentMethod]: amount,
+      };
     }
 
-    // Save table number statically in the bill
-    if (bill.table && bill.table.number) {
+    // Static table number (optional but useful for history)
+    if (bill.table?.number) {
       bill.tableNumber = bill.table.number;
     }
 
+    // Update bill status
     bill.status = "Paid";
-    bill.paymentMethod = paymentMethod;
-    if (paymentAmounts && paymentMethod !== "split") {
-      // Only assign paymentAmounts if not split because it's already assigned above
-      bill.paymentAmounts = paymentAmounts;
-    }
     await bill.save();
 
-    // Set table to available only if it exists
-    if (bill.table && bill.table._id) {
+    // Set table as available (if exists)
+    if (bill.table?._id) {
       await Table.findByIdAndUpdate(bill.table._id, { status: "Available" });
     }
 
+    // Update related orders as completed
     await Order.updateMany(
       { _id: { $in: bill.orders } },
       { $set: { status: "Completed" } }
@@ -93,7 +108,7 @@ const payBill = async (req, res) => {
     return Response.Success({
       res,
       status: 200,
-      message: "Bill paid, orders completed & table is available",
+      message: "Bill paid successfully. Orders marked complete, table released.",
       data: bill,
     });
   } catch (err) {
@@ -101,10 +116,11 @@ const payBill = async (req, res) => {
       res,
       status: 500,
       message: "Error processing payment",
-      error: err.message,
+      error: err?.message || err,
     });
   }
 };
+
 
 
 const getBill = async (req, res) => {

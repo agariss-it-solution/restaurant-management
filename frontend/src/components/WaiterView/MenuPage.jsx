@@ -429,51 +429,62 @@ function MenuPage() {
                 }}
               >
                 <h6 className="fw-semibold text-center py-2">Current Order</h6>
-                {order.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="d-flex justify-content-between align-items-start mb-3 p-2 border rounded"
-                  >
-                    <div className="flex-grow-1">
-                      <div className="fw-semibold">{item.name}</div>
-                      <div className="d-flex align-items-center gap-2 mt-1">
-                        <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
-                          {item.foodType}
-                        </span>
-                        {item.instructions && (
-                          <small className="text-dark fst-italic">"{item.instructions}"</small>
-                        )}
-                      </div>
-                      <div className="mt-1 d-flex align-items-center gap-2">
-                        <button
-                          className="btn btn-outline-secondary btn-sm px-2 py-0"
-                          onClick={() => {
-                            const updated = [...order];
-                            if (updated[idx].qty > 1) updated[idx].qty -= 1;
-                            else updated.splice(idx, 1);
-                            setOrder(updated);
-                          }}
-                        >
-                          −
-                        </button>
-                        <span>{item.qty}</span>
-                        <button
-                          className="btn btn-outline-secondary btn-sm px-2 py-0"
-                          onClick={() => {
-                            const updated = [...order];
-                            updated[idx].qty += 1;
-                            setOrder(updated);
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <div className="text-success fw-bold ms-2">
-                      ₹{(item.Price * item.qty).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
+               {order.map((item, idx) => (
+  <div
+    key={idx}
+    className="d-flex justify-content-between align-items-start mb-3 p-2 border rounded"
+  >
+    <div className="flex-grow-1">
+      <div className="fw-semibold">{item.name}</div>
+      <div className="d-flex align-items-center gap-2 mt-1">
+        <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
+          {item.foodType}
+        </span>
+        {item.instructions && (
+          <small className="text-dark fst-italic">"{item.instructions}"</small>
+        )}
+      </div>
+      <div className="mt-1 d-flex align-items-center gap-2">
+        <button
+          className="btn btn-outline-secondary btn-sm px-2 py-0"
+          onClick={() => {
+            const updated = [...order];
+            if (updated[idx].qty > 1) updated[idx].qty -= 1;
+            else updated.splice(idx, 1);
+            setOrder(updated);
+          }}
+        >
+          −
+        </button>
+        <span>{item.qty}</span>
+        <button
+          className="btn btn-outline-secondary btn-sm px-2 py-0"
+          onClick={() => {
+            const updated = [...order];
+            updated[idx].qty += 1;
+            setOrder(updated);
+          }}
+        >
+          +
+        </button>
+      </div>
+    </div>
+
+    {/* Updated right side: price and remove */}
+    <div className="text-end ms-2 d-flex flex-column align-items-end justify-content-between">
+      <div className="text-success fw-bold">
+        ₹{(item.Price * item.qty).toFixed(2)}
+      </div>
+      <button
+        className="btn btn-link text-danger p-0 small mt-1"
+        onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+      >
+        remove
+      </button>
+    </div>
+  </div>
+))}
+    
               </div>
             )}
           </div>

@@ -1,4 +1,3 @@
-// components/QRScannerModal.js
 import React, { useEffect, useState } from "react";
 import { QrReader } from "react-qr-reader";
 import { FiX } from "react-icons/fi";
@@ -10,13 +9,15 @@ const QRScannerModal = ({
   handlePay,
   scanningBillId,
   setScanningBillId,
+  amount,
+  paymentMode, // <-- Added this prop
 }) => {
   const [qrImage, setQrImage] = useState("");
 
   useEffect(() => {
     const loadQr = async () => {
       try {
-        const data = await fetchSettings();
+        const data = await fetchSettings(); // Assume it returns { qr: "image_url" }
         setQrImage(data.qr || "");
       } catch (err) {
         console.error("Failed to load QR image:", err.message);
@@ -64,10 +65,17 @@ const QRScannerModal = ({
           Close
         </button>
 
+        {/* Payment Info */}
+        <div className="mt-4 mb-3">
+          <h5 className="mb-1">Scan to Pay</h5>
+          {paymentMode === "Online" && (
+            <>Amount: ₹{amount != null ? Number(amount).toFixed(2) : "0.00"}</>
+          )}
+        </div>
 
         {/* QR Scanner */}
         <div
-          className="position-relative mt-5 "
+          className="position-relative mt-3"
           style={{
             borderRadius: "12px",
             overflow: "hidden",
@@ -75,10 +83,12 @@ const QRScannerModal = ({
         >
           <QrReader
             constraints={{ facingMode: "environment" }}
-            onUpdate={(err, result) => {
-              if (err) console.error("QR Scanner Error:", err);
-              if (result) {
-                console.log("QR Code Result:", result?.text || result);
+            onResult={(result, error) => {
+              if (!!result) {
+                console.log("QR Code Result:", result?.text);
+              }
+              if (!!error) {
+                console.error("QR Scanner Error:", error);
               }
             }}
             style={{ width: "100%" }}
@@ -104,7 +114,7 @@ const QRScannerModal = ({
 
         {/* Done Button */}
         <button
-          className="btn btn-success mt-3 w-100 rounded-pill"
+          className="btn btn-success mt-4 w-100 rounded-pill"
           onClick={handleDone}
         >
           Done

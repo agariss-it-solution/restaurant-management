@@ -5,18 +5,9 @@ const getAnalytics = async (req, res) => {
   try {
     const now = new Date();
 
-    // --- Daily Time Range (12 PM to 12 PM logic) ---
-    const todayNoon = new Date();
-    todayNoon.setHours(12, 0, 0, 0); // today 12:00 PM
-
-    let startTime, endTime;
-    if (now >= todayNoon) {
-      startTime = todayNoon;
-      endTime = new Date(todayNoon.getTime() + 24 * 60 * 60 * 1000); // tomorrow 12 PM
-    } else {
-      startTime = new Date(todayNoon.getTime() - 24 * 60 * 60 * 1000); // yesterday 12 PM
-      endTime = todayNoon;
-    }
+    // --- Daily Time Range (12 AM to 12 AM) ---
+    const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0); // today 12:00 AM
+    const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0); // tomorrow 12:00 AM
 
     // --- Monthly Time Range ---
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -136,30 +127,29 @@ const getAnalytics = async (req, res) => {
     const monthlyAvgOrderValue = monthlyOrders > 0 ? monthlyRevenue / monthlyOrders : 0;
     const monthlyCompletionRate = monthlyOrders > 0 ? (monthlyCompletedOrders / monthlyOrders) * 100 : 0;
 
- // --- Monthly Top 5 Most Bought Items ---
-const topItemsAgg = await Order.aggregate([
-  {
-    $match: {
-      createdAt: { $gte: startOfMonth, $lt: endOfMonth }
-    }
-  },
-  { $unwind: "$items" },
-  {
-    $match: {
-      "items.isCancelled": false 
-    }
-  },
-  {
-    $group: {
-      _id: "$items.menuItem", 
-      name: { $first: "$items.name" },
-      totalQuantity: { $sum: "$items.quantity" }
-    }
-  },
-  { $sort: { totalQuantity: -1 } },
-  { $limit: 5 }
-]);
-
+    // --- Monthly Top 5 Most Bought Items ---
+    const topItemsAgg = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfMonth, $lt: endOfMonth }
+        }
+      },
+      { $unwind: "$items" },
+      {
+        $match: {
+          "items.isCancelled": false
+        }
+      },
+      {
+        $group: {
+          _id: "$items.menuItem",
+          name: { $first: "$items.name" },
+          totalQuantity: { $sum: "$items.quantity" }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 5 }
+    ]);
 
     // --- Final Response ---
     return res.status(200).json({
@@ -188,7 +178,6 @@ const topItemsAgg = await Order.aggregate([
         // Payments
         paymentTotals,
 
-    
         topItems: topItemsAgg
       }
     });
@@ -202,6 +191,7 @@ const topItemsAgg = await Order.aggregate([
     });
   }
 };
+
 
 
 module.exports = getAnalytics;

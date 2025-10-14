@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getAllPaidBills, fetchSettings ,updateBill} from "../config/api";
+import { getAllPaidBills, fetchSettings, updateBill } from "../config/api";
 import { Badge, Button, Form, Dropdown, DropdownButton } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -221,42 +221,42 @@ const OrderCard = () => {
 
     doc.save(`Orders_Report_${new Date().toLocaleDateString("en-GB")}.pdf`);
   };
-const handleSaveDiscount = async (bill) => {
-  try {
-    const originalTotal = calculateOrderTotal(bill);
-    const discountValue = bill.discountValue || 0;
+  const handleSaveDiscount = async (bill) => {
+    try {
+      const originalTotal = calculateOrderTotal(bill);
+      const discountValue = bill.discountValue || 0;
 
-    if (isNaN(originalTotal)) {
-      console.error("Invalid bill total calculated:", originalTotal);
-      alert("Failed to update bill: Invalid bill total.");
-      return;
+      if (isNaN(originalTotal)) {
+        console.error("Invalid bill total calculated:", originalTotal);
+        alert("Failed to update bill: Invalid bill total.");
+        return;
+      }
+
+      const totalAmount = originalTotal - discountValue;
+
+      const payload = {
+        discountValue,
+        totalAmount,
+      };
+
+      console.log("Updating bill with ID:", bill.orderId); // ✅ Correct ID
+      console.log("Payload being sent:", payload);
+
+      const updated = await updateBill(bill.orderId, payload); // ✅ Use bill ID
+
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.orderId === bill.orderId ? { ...o, ...updated, isEditing: false } : o
+        )
+      );
+
+      alert("Discount updated successfully!");
+    } catch (err) {
+      const errorMessage =
+        err?.response?.data?.message || err?.message || JSON.stringify(err);
+      alert("Failed to update bill: " + errorMessage);
     }
-
-    const totalAmount = originalTotal - discountValue;
-
-    const payload = {
-      discountValue,
-      totalAmount,
-    };
-
-    console.log("Updating bill with ID:", bill.orderId); // ✅ Correct ID
-    console.log("Payload being sent:", payload);
-
-    const updated = await updateBill(bill.orderId, payload); // ✅ Use bill ID
-
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.orderId === bill.orderId ? { ...o, ...updated, isEditing: false } : o
-      )
-    );
-
-    alert("Discount updated successfully!");
-  } catch (err) {
-    const errorMessage =
-      err?.response?.data?.message || err?.message || JSON.stringify(err);
-    alert("Failed to update bill: " + errorMessage);
-  }
-};
+  };
 
 
 
@@ -519,6 +519,7 @@ const handleSaveDiscount = async (bill) => {
           const items = order.items || [];
           const visibleItems = isExpanded ? items : items.slice(0, 3);
           const hiddenCount = items.length - 3;
+          // console.log('order.paymentAmounts', order)
 
           return (
             <div key={index} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
@@ -538,13 +539,32 @@ const handleSaveDiscount = async (bill) => {
                         {order.status || "New"}
                         {/* {order.paymentMethod || "New"} */}
                       </Badge>
-                      <Badge
-                        bg="success"
-                        className="px-2 py-1 rounded-pill text-capitalize"
-                      >
-                        {order.paymentMethod || "New"}
-                        {/* {order.paymentMethod || "New"} */}
-                      </Badge>
+                      {order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts ? (
+                        <div className="d-flex flex-column align-items-end">
+                          <Badge bg="primary" className="px-2 py-1 rounded-pill mb-1">
+                            Split Payment
+                          </Badge>
+                          <div className="d-flex flex-wrap gap-1 justify-content-end">
+                            {order.paymentAmounts.cash > 0 && (
+                              <Badge bg="warning" className="px-2 py-1 rounded-pill">
+                                Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
+                              </Badge>
+                            )}
+                            {order.paymentAmounts.online > 0 && (
+                              <Badge bg="info" className="px-2 py-1 rounded-pill">
+                                Online: ₹{order.paymentAmounts.online.toFixed(2)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge bg="success" className="px-2 py-1 rounded-pill text-capitalize">
+                          {order.paymentMethod || "Paid"}
+                        </Badge>
+                      )}
+
+
+
                       <Button
                         variant="outline-primary"
                         size="sm"
@@ -571,6 +591,7 @@ const handleSaveDiscount = async (bill) => {
                       key={i}
                       className="d-flex justify-content-between align-items-start small mb-2"
                     >
+
                       <div>
                         <div className="fw-semibold">
                           {item.quantity}x {item.name || item.menuItem}
@@ -616,89 +637,90 @@ const handleSaveDiscount = async (bill) => {
                   )}
                 </div>
 
-              {/* Total + Discount Edit */}
-<div className="mt-3">
-  <div className="d-flex justify-content-between fw-bold">
-    <span>Total:</span>
-    <span className="text-success">
-      ₹{(order.totalAmount || calculateOrderTotal(order)).toFixed(2)}
-    </span>
-  </div>
+                {/* Total + Discount Edit */}
+                <div className="mt-3">
+                  <div className="d-flex justify-content-between fw-bold">
+                    <span>Total:</span>
+                    <span className="text-success">
+                      ₹{(order.totalAmount || calculateOrderTotal(order)).toFixed(2)}
 
-  {order.discountValue ? (
-    <div className="d-flex justify-content-between text-muted small mt-1">
-      <span>Discount:</span>
-      <span>- ₹{order.discountValue.toFixed(2)}</span>
-    </div>
-  ) : null}
+                    </span>
+                  </div>
 
-  <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
-    <span>Final:</span>
-    <span className="text-primary">
-      ₹{((order.totalAmount || calculateOrderTotal(order)) - (order.discountValue || 0)).toFixed(2)}
-    </span>
-  </div>
+                  {order.discountValue ? (
+                    <div className="d-flex justify-content-between text-muted small mt-1">
+                      <span>Discount:</span>
+                      <span>- ₹{order.discountValue.toFixed(2)}</span>
+                    </div>
+                  ) : null}
 
-  {/* Edit Discount Section */}
-  {!order.isEditing ? (
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      className="mt-2 w-100"
-      onClick={() =>
-        setOrders((prev) =>
-          prev.map((o) =>
-            o._id === order._id ? { ...o, isEditing: true } : o
-          )
-        )
-      }
-    >
-      Edit Discount
-    </Button>
-  ) : (
-    <div className="mt-2">
-      <input
-        type="number"
-        className="form-control form-control-sm"
-        placeholder="Enter discount amount"
-        value={order.discountValue || ""}
-        onChange={(e) =>
-          setOrders((prev) =>
-            prev.map((o) =>
-              o._id === order._id
-                ? { ...o, discountValue: Number(e.target.value) }
-                : o
-            )
-          )
-        }
-      />
-      <div className="d-flex gap-2 mt-2">
-        <Button
-          variant="success"
-          size="sm"
-          className="flex-fill"
-          onClick={() => handleSaveDiscount(order)}
-        >
-          Save
-        </Button>
-        <Button
-          variant="outline-danger"
-          size="sm"
-          className="flex-fill"
-          onClick={() =>
-            setOrders((prev) =>
-              prev.map((o) =>
-                o._id === order._id ? { ...o, isEditing: false } : o
-              )
-            )
-          }
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
-  )}
-</div>
+                  <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
+                    <span>Final:</span>
+                    <span className="text-primary">
+                      ₹{((order.totalAmount || calculateOrderTotal(order)) - (order.discountValue || 0)).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Edit Discount Section */}
+                  {!order.isEditing ? (
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className="mt-2 w-100"
+                      onClick={() =>
+                        setOrders((prev) =>
+                          prev.map((o) =>
+                            o._id === order._id ? { ...o, isEditing: true } : o
+                          )
+                        )
+                      }
+                    >
+                      Edit Discount
+                    </Button>
+                  ) : (
+                    <div className="mt-2">
+                      <input
+                        type="number"
+                        className="form-control form-control-sm"
+                        placeholder="Enter discount amount"
+                        value={order.discountValue || ""}
+                        onChange={(e) =>
+                          setOrders((prev) =>
+                            prev.map((o) =>
+                              o._id === order._id
+                                ? { ...o, discountValue: Number(e.target.value) }
+                                : o
+                            )
+                          )
+                        }
+                      />
+                      <div className="d-flex gap-2 mt-2">
+                        <Button
+                          variant="success"
+                          size="sm"
+                          className="flex-fill"
+                          onClick={() => handleSaveDiscount(order)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          className="flex-fill"
+                          onClick={() =>
+                            setOrders((prev) =>
+                              prev.map((o) =>
+                                o._id === order._id ? { ...o, isEditing: false } : o
+                              )
+                            )
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
               </div>
 

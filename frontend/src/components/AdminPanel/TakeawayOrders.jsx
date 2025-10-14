@@ -1,24 +1,16 @@
 // IMPORTS
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Spinner } from "react-bootstrap";
-import {
-  fetchCategories,
-  fetchTables,
-  updateTable,
-  submitOrder,
-} from "../config/api";
+import { fetchCategories, submitOrder } from "../config/api";
 import { toast } from "react-toastify";
 import "../../App.css";
 
-function MenuPage() {
+function TakeawayMenu() {
   const navigate = useNavigate();
-  const { tableId } = useParams();
 
   const [category, setCategory] = useState("");
   const [menuData, setMenuData] = useState([]);
-  const [tables, setTables] = useState([]);
-  const [tableNumber, setTableNumber] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [order, setOrder] = useState([]);
@@ -28,41 +20,31 @@ function MenuPage() {
   const [instructions, setInstructions] = useState("");
   const [showOrderList, setShowOrderList] = useState(false);
 
-  // Search term state
   const [searchTerm, setSearchTerm] = useState("");
+  const [customerName, setCustomerName] = useState("");
 
   const currentCategory = menuData.find((cat) => cat.category === category);
   const menuItemsRef = useRef(null);
-  const orderSummaryRef = useRef(null);
 
   useEffect(() => {
-    const loadMenuAndTable = async () => {
+    const loadMenu = async () => {
       try {
-        const [menu, tablesList] = await Promise.all([
-          fetchCategories(),
-          fetchTables(),
-        ]);
+        const menu = await fetchCategories();
         setMenuData(menu);
-        setTables(tablesList);
-
         if (menu.length > 0) setCategory(menu[0].category);
-
-        const tableObj = tablesList.find((t) => t._id === tableId);
-        setTableNumber(tableObj ? tableObj.number : tableId);
       } catch (err) {
-        console.error("Error loading menu or tables:", err);
-        setTableNumber(tableId);
+        console.error("Error loading menu:", err);
+        toast.error("Failed to load menu items");
       } finally {
         setLoading(false);
       }
     };
-    loadMenuAndTable();
-  }, [tableId]);
+    loadMenu();
+  }, []);
 
   const handleCategoryClick = (cat) => {
     setCategory(cat.category);
-    setSearchTerm(""); // reset search on category change
-
+    setSearchTerm("");
     setTimeout(() => {
       if (menuItemsRef.current) {
         menuItemsRef.current.scrollIntoView({
@@ -73,7 +55,6 @@ function MenuPage() {
     }, 150);
   };
 
-
   const handleAddItem = (item) => {
     setSelectedItem(item);
     setFoodType("Regular");
@@ -81,14 +62,11 @@ function MenuPage() {
     setShowModal(true);
   };
 
-  // Confirm adding item from modal
   const handleConfirmAdd = () => {
     if (selectedItem) {
       setOrder((prev) => {
-
         const index = prev.findIndex((o) => o._id === selectedItem._id);
         if (index !== -1) {
-
           const updated = [...prev];
           updated[index] = {
             ...updated[index],
@@ -98,7 +76,6 @@ function MenuPage() {
           };
           return updated;
         } else {
-
           return [...prev, { ...selectedItem, qty: 1, foodType, instructions }];
         }
       });
@@ -112,8 +89,14 @@ function MenuPage() {
       return;
     }
 
+    if (!customerName.trim()) {
+      toast.error("Please enter customer name");
+      return;
+    }
+
     const orderData = {
-      table: tableId,
+      orderType: "Takeaway",
+      customerName: customerName.trim(),
       items: order.map((item) => ({
         itemId: item._id,
         quantity: item.qty,
@@ -124,12 +107,12 @@ function MenuPage() {
 
     try {
       await submitOrder(orderData);
-      await updateTable(tableId, { status: "Occupied" });
-      toast.success("All items added to order");
+      toast.success("Takeaway order sent to kitchen");
       setOrder([]);
-      navigate("/admin/orders");
+      setCustomerName("");
+      navigate("/admin/takeaway");
     } catch (err) {
-      console.error("Error submitting order:", err);
+      console.error("Error submitting takeaway order:", err);
       toast.error("Failed to submit order.");
     }
   };
@@ -159,8 +142,19 @@ function MenuPage() {
       <div className="row">
         {/* LEFT: Menu Section */}
         <div className="col-lg-9" style={{ maxHeight: "80vh", overflowY: "auto" }}>
-          <h4 className="fw-bold">Menu - Table {tableNumber}</h4>
-          <p className="text-dark fw-medium mb-3">Select items to add to the order</p>
+          <h4 className="fw-bold">Takeaway Orders</h4>
+          <p className="text-dark fw-medium mb-3">Select items to add to this takeaway order</p>
+
+          {/* Customer Name Input */}
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Enter Customer Name..."
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+            />
+          </div>
 
           {/* Categories */}
           <div className="row g-2 mb-3">
@@ -318,7 +312,6 @@ function MenuPage() {
                         </div>
                       </div>
 
-                      {/* Quantity controls and remove aligned on opposite sides */}
                       <div className="d-flex align-items-center mt-2 justify-content-between">
                         <div className="d-flex align-items-center gap-2">
                           <button
@@ -347,7 +340,6 @@ function MenuPage() {
                           </button>
                         </div>
 
-                        {/* remove button aligned to the right end */}
                         <button
                           className="btn btn-link text-danger p-0 small"
                           onClick={() => setOrder(order.filter((_, i) => i !== idx))}
@@ -360,7 +352,6 @@ function MenuPage() {
                 </ul>
               </div>
 
-              {/* Footer */}
               <div className="mt-3 order-summary-footer">
                 <div className="d-flex justify-content-between fw-bold mb-2">
                   <span>Total:</span>
@@ -375,112 +366,9 @@ function MenuPage() {
             </div>
           )}
         </div>
-
-        {/* Mobile Order Summary */}
-        {order.length > 0 && (
-          <div className="d-lg-none">
-            <div
-              className="fixed-bottom bg-white p-3 border-top d-flex justify-content-between align-items-center"
-              style={{ zIndex: 1060, cursor: "pointer" }}
-              onClick={() => setShowOrderList((prev) => !prev)}
-            >
-              <div className="fw-bold">
-                Total: ₹{order.reduce((sum, item) => sum + item.Price * item.qty, 0).toFixed(2)}
-              </div>
-              <button
-                className="btn btn-success"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSubmitOrder();
-                }}
-              >
-                Send to Kitchen
-              </button>
-            </div>
-
-            {showOrderList && (
-              <div
-                className="d-lg-none bg-white border-top order-list-mobile"
-                style={{
-                  position: "fixed",
-                  bottom: "70px",
-                  left: 0,
-                  right: 0,
-                  maxHeight: "35vh",
-                  overflowY: "auto",
-                  zIndex: 1050,
-                  padding: "10px 15px",
-                }}
-              >
-                <h6 className="fw-semibold text-center py-2">Current Order</h6>
-                {order.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="d-flex justify-content-between align-items-start mb-3 p-2 border rounded"
-                  >
-
-                    <div className="flex-grow-1">
-                      <div className="fw-semibold">{item.name}</div>
-                      <div className="d-flex align-items-center gap-2 mt-1">
-                        <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
-                          {item.foodType}
-                        </span>
-                        {item.instructions && (
-                          <small className="text-dark fst-italic">"{item.instructions}"</small>
-                        )}
-                      </div>
-                      <div className="mt-1 d-flex align-items-center justify-content-between">
-                        {/* Quantity controls */}
-                        <div className="d-flex align-items-center gap-2">
-                          <button
-                            className="btn btn-outline-secondary btn-sm px-2 py-0"
-                            onClick={() => {
-                              const updated = [...order];
-                              if (updated[idx].qty > 1) updated[idx].qty -= 1;
-                              else updated.splice(idx, 1);
-                              setOrder(updated);
-                            }}
-                          >
-                            −
-                          </button>
-                          <span>{item.qty}</span>
-                          <button
-                            className="btn btn-outline-secondary btn-sm px-2 py-0"
-                            onClick={() => {
-                              const updated = [...order];
-                              updated[idx].qty += 1;
-                              setOrder(updated);
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-
-
-                      </div>
-
-                    </div>
-                    <div className="text-success fw-bold ms-2">
-                      ₹{(item.Price * item.qty).toFixed(2)}
-
-                    <div>   {/* Remove button aligned to right */}
-                      <button
-                        className="btn btn-link text-danger p-0 small"
-                        onClick={() => setOrder(order.filter((_, i) => i !== idx))}
-                      >
-                        remove
-                      </button>
-                    </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-
+      {/* Add Item Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="md">
         <Modal.Header closeButton>
           <Modal.Title>Add to Order: {selectedItem?.name}</Modal.Title>
@@ -525,20 +413,8 @@ function MenuPage() {
           <Button variant="success" onClick={handleConfirmAdd}>Confirm</Button>
         </Modal.Footer>
       </Modal>
-
-      {/* Extra CSS for desktop */}
-      <style>{`
-        @media (min-width: 992px) {
-          .order-summary-wrapper {
-            position: static !important;
-            max-height: none !important;
-            overflow-y: visible !important;
-            border-top: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
 
-export default MenuPage;
+export default TakeawayMenu;

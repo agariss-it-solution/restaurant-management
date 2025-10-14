@@ -27,6 +27,7 @@ import Analytics from "./components/AdminPanel/Analytics";
 import ManageMenuPage from "./components/AdminPanel/ManageMenuPage";
 import AdminMenuPage from "./components/AdminPanel/AdminMenuPage";
 import OrderHistory from "./components/AdminPanel/OrderHisroy";
+import TakeawayOrders from "./components/AdminPanel/TakeawayOrders";
 
 // Public
 import Home from "./components/Home/Home";
@@ -81,6 +82,8 @@ function AppRoutes() {
           <Route path="managemenu" element={<ManageMenuPage />} />
           <Route path="adminmenu/:tableId" element={<AdminMenuPage />} />
           <Route path="order-history" element={<OrderHistory />} />
+          <Route path="/admin/takeaway" element={<TakeawayOrders />} />
+
         </Route>
 
         {/* Fallback */}

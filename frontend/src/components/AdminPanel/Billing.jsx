@@ -12,10 +12,13 @@ function BillingRevenue() {
   const [showScanner, setShowScanner] = useState(false);
   const [scanningBillId, setScanningBillId] = useState(null);
   const [selectedBillAmount, setSelectedBillAmount] = useState(0);
+  const [paymentMode, setPaymentMode] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [paymentType, setPaymentType] = useState("");
+  const [selectedBill, setSelectedBill] = useState(null);
   const [selectedBillId, setSelectedBillId] = useState(null);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  const [pendingSplitPayment, setPendingSplitPayment] = useState(null);
   const [splitAmounts, setSplitAmounts] = useState({ cash: '', online: '' });
   const [splitBillId, setSplitBillId] = useState(null);
 
@@ -77,12 +80,8 @@ function BillingRevenue() {
   const handleSplitPayment = async () => {
     if (!splitBillId) return;
 
-    // console.log("splitAmounts at payment:", splitAmounts);
-
     const cashAmount = parseFloat(splitAmounts.cash);
     const onlineAmount = parseFloat(splitAmounts.online);
-
-    // console.log("cashAmount:", cashAmount, "onlineAmount:", onlineAmount);
 
     if (isNaN(cashAmount) || isNaN(onlineAmount)) {
       alert("Please enter valid numbers for split amounts.");
@@ -107,6 +106,26 @@ function BillingRevenue() {
       return;
     }
 
+    // 🧠 If onlineAmount > 0, open QR scanner first
+    if (onlineAmount > 0) {
+      setPendingSplitPayment({
+        splitBillId,
+        payload: {
+          paymentMethod: "split",
+          paymentAmounts: {
+            cash: cashAmount,
+            online: onlineAmount,
+          },
+        },
+      });
+
+      setShowSplitModal(false);
+      setScanningBillId(splitBillId);
+      setShowScanner(true);
+      return;
+    }
+
+    // ✅ Otherwise, process split payment directly
     try {
       const payload = {
         paymentMethod: "split",
@@ -115,7 +134,6 @@ function BillingRevenue() {
           online: onlineAmount,
         },
       };
-
 
       const updatedBill = await payBill(splitBillId, payload);
 
@@ -134,6 +152,7 @@ function BillingRevenue() {
       alert("Payment failed. Please try again.");
     }
   };
+
 
 
 
@@ -342,6 +361,7 @@ function BillingRevenue() {
     setSelectedBillId(billId);
     setSelectedBillAmount(billTotal);
     setShowConfirm(true);
+     setPaymentType("");
   };
 
 
@@ -351,8 +371,16 @@ function BillingRevenue() {
     if (paymentType === "Cash") {
       handlePay(selectedBillId, "Cash");
     } else if (paymentType === "Online") {
+      const billData = bills.find(b => b._id === selectedBillId);
+      if (billData) {
+        setSelectedBill({ 
+          ...billData, 
+          total: selectedBillAmount 
+        });
+      }
       setShowScanner(true);
       setScanningBillId(selectedBillId);
+      setPaymentMode("Online");
     } else if (paymentType === "Split") {
       openSplitModal(selectedBillId);
     }
@@ -461,7 +489,7 @@ function BillingRevenue() {
 
                       {/* Buttons - MOBILE FIXED: stack buttons on small screens */}
                       <div className="d-flex flex-column flex-md-row flex-wrap gap-2 mt-3">
-                      
+
                         <Button
                           className="btn btn-success flex-fill"
                           onClick={() => openConfirm(bill._id)}
@@ -720,9 +748,43 @@ function BillingRevenue() {
         showScanner={showScanner}
         setShowScanner={setShowScanner}
         scanningBillId={scanningBillId}
+         paymentMode="Online"
         setScanningBillId={setScanningBillId}
-        handlePay={handlePay}
+        handlePay={async (billId) => {
+          try {
+            if (pendingSplitPayment && pendingSplitPayment.splitBillId === billId) {
+              const updatedBill = await payBill(billId, pendingSplitPayment.payload);
+              setBills(prevBills =>
+                prevBills.map(bill =>
+                  bill._id === billId ? { ...bill, status: updatedBill.status || "Paid" } : bill
+                )
+              );
+              setPendingSplitPayment(null);
+            } else {
+              await handlePay(billId, "Online");
+            }
+
+            setShowScanner(false);
+            setScanningBillId(null);
+
+          } catch (err) {
+            console.error("Payment error:", err);
+            alert("Payment failed. Please try again.");
+          }
+        }}
+        onlineAmount={
+          pendingSplitPayment && pendingSplitPayment.splitBillId === scanningBillId
+            ? pendingSplitPayment.payload.paymentAmounts.online
+            : null
+        }
+        amount={
+          pendingSplitPayment?.splitBillId === scanningBillId
+            ? pendingSplitPayment.payload.paymentAmounts.online
+            : selectedBill?.total // ← fallback for full payment
+        }
       />
+
+
     </div>
   );
 }

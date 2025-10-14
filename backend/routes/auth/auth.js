@@ -52,6 +52,7 @@ app.get("/orders/history", ordersendController.getOrderHistory);
 app.delete("/orders/history", ordersendController.deleteOrderHistory);
 app.put("/orders/:id", ordersendController.updateOrderStatus);
 app.post("/ordersupdate", ordersendController.updateOrderItemQuantity);
+    
 // app.get("/orders/:id", ordersendController.getOrderById);
 
 //--------order cancel route------
