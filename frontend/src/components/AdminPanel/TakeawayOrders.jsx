@@ -1,4 +1,3 @@
-// IMPORTS
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Modal, Form, Spinner } from "react-bootstrap";
@@ -8,7 +7,6 @@ import "../../App.css";
 
 function TakeawayMenu() {
   const navigate = useNavigate();
-
   const [category, setCategory] = useState("");
   const [menuData, setMenuData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,7 +16,6 @@ function TakeawayMenu() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [foodType, setFoodType] = useState("Regular");
   const [instructions, setInstructions] = useState("");
-  const [showOrderList, setShowOrderList] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -46,12 +43,7 @@ function TakeawayMenu() {
     setCategory(cat.category);
     setSearchTerm("");
     setTimeout(() => {
-      if (menuItemsRef.current) {
-        menuItemsRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }
+      menuItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 150);
   };
 
@@ -63,36 +55,44 @@ function TakeawayMenu() {
   };
 
   const handleConfirmAdd = () => {
-    if (selectedItem) {
-      setOrder((prev) => {
-        const index = prev.findIndex((o) => o._id === selectedItem._id);
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            qty: updated[index].qty + 1,
-            foodType,
-            instructions,
-          };
-          return updated;
-        } else {
-          return [...prev, { ...selectedItem, qty: 1, foodType, instructions }];
-        }
-      });
-    }
+    if (!selectedItem) return;
+    setOrder((prev) => {
+      const index = prev.findIndex((o) => o._id === selectedItem._id);
+      if (index !== -1) {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          qty: updated[index].qty + 1,
+          foodType,
+          instructions,
+        };
+        return updated;
+      } else {
+        return [...prev, { ...selectedItem, qty: 1, foodType, instructions }];
+      }
+    });
     setShowModal(false);
   };
 
-  const handleSubmitOrder = async () => {
-    if (order.length === 0) {
-      toast.error("No items in order");
-      return;
-    }
+  const handleQuantityChange = (itemId, delta) => {
+    setOrder((prev) => {
+      const updated = [...prev];
+      const index = updated.findIndex((o) => o._id === itemId);
+      if (index !== -1) {
+        const newQty = updated[index].qty + delta;
+        if (newQty <= 0) {
+          updated.splice(index, 1);
+        } else {
+          updated[index].qty = newQty;
+        }
+      }
+      return updated;
+    });
+  };
 
-    if (!customerName.trim()) {
-      toast.error("Please enter customer name");
-      return;
-    }
+  const handleSubmitOrder = async () => {
+    if (order.length === 0) return toast.error("No items in order");
+    if (!customerName.trim()) return toast.error("Please enter customer name");
 
     const orderData = {
       orderType: "Takeaway",
@@ -113,7 +113,7 @@ function TakeawayMenu() {
       navigate("/admin/takeaway");
     } catch (err) {
       console.error("Error submitting takeaway order:", err);
-      toast.error("Failed to submit order.");
+      toast.error("Failed to submit order");
     }
   };
 
@@ -125,27 +125,23 @@ function TakeawayMenu() {
     );
   }
 
-  // Filtering logic
-  let filteredItems = [];
-  if (searchTerm.trim()) {
-    filteredItems = menuData
-      .flatMap((cat) => cat.items || [])
-      .filter((item) =>
+  const filteredItems = searchTerm
+    ? menuData.flatMap((cat) => cat.items || []).filter((item) =>
         item.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  } else {
-    filteredItems = currentCategory?.items || [];
-  }
+      )
+    : currentCategory?.items || [];
 
   return (
     <div className="py-4">
       <div className="row">
-        {/* LEFT: Menu Section */}
+        {/* LEFT: Menu */}
         <div className="col-lg-9" style={{ maxHeight: "80vh", overflowY: "auto" }}>
           <h4 className="fw-bold">Takeaway Orders</h4>
-          <p className="text-dark fw-medium mb-3">Select items to add to this takeaway order</p>
+          <p className="text-dark fw-medium mb-3">
+            Select items to add to this takeaway order
+          </p>
 
-          {/* Customer Name Input */}
+          {/* Customer Name */}
           <div className="mb-3">
             <input
               type="text"
@@ -162,11 +158,11 @@ function TakeawayMenu() {
               <div key={cat._id} className="col-3 col-md-4 col-lg-2">
                 <div
                   onClick={() => handleCategoryClick(cat)}
-                  className={`d-flex flex-column align-items-center p-3 h-100 
-                    ${currentCategory?.category === cat.category
+                  className={`d-flex flex-column align-items-center p-3 h-100 ${
+                    currentCategory?.category === cat.category
                       ? "bg-success text-white"
                       : "bg-light text-dark"
-                    }`}
+                  }`}
                   style={{ cursor: "pointer", borderRadius: "8px" }}
                 >
                   {cat.imageUrl && (
@@ -188,7 +184,7 @@ function TakeawayMenu() {
             ))}
           </div>
 
-          {/* Search Box */}
+          {/* Search */}
           <div className="mb-3">
             <input
               type="text"
@@ -200,55 +196,35 @@ function TakeawayMenu() {
           </div>
 
           {/* Menu Items */}
-          <div ref={menuItemsRef} className="row g-3 p-3" style={{ position: "relative" }}>
-            {filteredItems.length === 0 && (
-              <p className="text-dark fw-medium">No items available</p>
-            )}
-
+          <div ref={menuItemsRef} className="row g-3 p-3">
+            {filteredItems.length === 0 && <p>No items available</p>}
             {filteredItems.map((item) => {
-              const orderItemIndex = order.findIndex((o) => o._id === item._id);
-              const orderItem = orderItemIndex !== -1 ? order[orderItemIndex] : { qty: 0 };
-
+              const orderItem = order.find((o) => o._id === item._id) || { qty: 0 };
               return (
                 <div key={item._id} className="col-12 col-sm-6 col-lg-4">
                   <div className="card h-100 shadow-sm border-0">
                     <div className="card-body d-flex flex-column">
                       <h5 className="card-title">{item.name}</h5>
-
                       <div className="mt-auto d-flex justify-content-between align-items-center w-100">
                         <strong className="text-success">₹{item.Price}</strong>
-
                         <div className="d-flex align-items-center gap-2">
                           {orderItem.qty > 0 && (
                             <div className="d-flex align-items-center gap-2">
                               <button
                                 className="btn btn-outline-secondary btn-sm py-0 px-2"
-                                onClick={() => {
-                                  const updated = [...order];
-                                  if (updated[orderItemIndex].qty > 1)
-                                    updated[orderItemIndex].qty -= 1;
-                                  else updated.splice(orderItemIndex, 1);
-                                  setOrder(updated);
-                                }}
+                                onClick={() => handleQuantityChange(item._id, -1)}
                               >
                                 −
                               </button>
-
                               <span className="fw-bold">{orderItem.qty}</span>
-
                               <button
                                 className="btn btn-outline-secondary btn-sm py-0 px-2"
-                                onClick={() => {
-                                  const updated = [...order];
-                                  updated[orderItemIndex].qty += 1;
-                                  setOrder(updated);
-                                }}
+                                onClick={() => handleQuantityChange(item._id, 1)}
                               >
                                 +
                               </button>
                             </div>
                           )}
-
                           <Button
                             variant="success"
                             size="sm"
@@ -258,7 +234,6 @@ function TakeawayMenu() {
                           </Button>
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
@@ -267,7 +242,7 @@ function TakeawayMenu() {
           </div>
         </div>
 
-        {/* RIGHT: Fixed Order Summary */}
+        {/* RIGHT: Order Summary */}
         <div className="col-lg-3 d-none d-lg-block">
           {order.length > 0 && (
             <div
@@ -316,33 +291,23 @@ function TakeawayMenu() {
                         <div className="d-flex align-items-center gap-2">
                           <button
                             className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
-                            onClick={() => {
-                              const updated = [...order];
-                              if (updated[idx].qty > 1) updated[idx].qty -= 1;
-                              else updated.splice(idx, 1);
-                              setOrder(updated);
-                            }}
+                            onClick={() => handleQuantityChange(item._id, -1)}
                           >
                             −
                           </button>
-
                           <span>{item.qty}</span>
-
                           <button
                             className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
-                            onClick={() => {
-                              const updated = [...order];
-                              updated[idx].qty += 1;
-                              setOrder(updated);
-                            }}
+                            onClick={() => handleQuantityChange(item._id, 1)}
                           >
                             +
                           </button>
                         </div>
-
                         <button
                           className="btn btn-link text-danger p-0 small"
-                          onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+                          onClick={() =>
+                            setOrder(order.filter((_, i) => i !== idx))
+                          }
                         >
                           remove
                         </button>
@@ -359,7 +324,11 @@ function TakeawayMenu() {
                     ₹{order.reduce((sum, item) => sum + item.Price * item.qty, 0).toFixed(2)}
                   </span>
                 </div>
-                <button className="btn btn-success w-100" onClick={handleSubmitOrder}>
+                <button
+                  className="btn btn-success w-100"
+                  disabled={order.length === 0 || !customerName.trim()}
+                  onClick={handleSubmitOrder}
+                >
                   Send to Kitchen
                 </button>
               </div>

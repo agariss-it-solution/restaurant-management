@@ -8,39 +8,49 @@ const orderItemSchema = new mongoose.Schema({
   },
   name: { type: String, required: true },
   Price: { type: Number, required: true, min: 0 },
-  quantity: {
-    type: Number,
-    default: 1,
-    min: 1,
-  },
+  quantity: { type: Number, default: 1, min: 1 },
   foodType: {
     type: String,
     enum: ["Regular", "Jain"],
     default: "Regular",
   },
-  specialInstructions: {
-    type: String,
-    default: "",
-  },
-  isCancelled: { type: Boolean, default: false } // ✅ Add this
+  specialInstructions: { type: String, default: "" },
+  isCancelled: { type: Boolean, default: false },
 });
 
 const orderSchema = new mongoose.Schema(
   {
+    // 🟢 Allow either a table OR takeaway
     table: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Table",
-      required: true,
+      required: function () {
+        return this.orderType === "Dine-In";
+      },
     },
+
+    orderType: {
+      type: String,
+      enum: ["Dine-In", "Takeaway"],
+      default: "Dine-In",
+    },
+
+    customerName: {
+      type: String,
+      trim: true,
+    },
+
     items: {
       type: [orderItemSchema],
       validate: [v => v.length > 0, "Order must have at least one item"],
     },
+
     status: {
       type: String,
       enum: ["Pending", "Preparing", "Ready", "Completed", "Canceled"],
       default: "Pending",
     },
+
     Price: {
       type: Number,
       required: true,
@@ -52,9 +62,7 @@ const orderSchema = new mongoose.Schema(
       ref: "Bill",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Order", orderSchema);

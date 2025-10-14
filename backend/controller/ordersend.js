@@ -115,34 +115,40 @@ const createOrder = async (req, res) => {
     }
 
     try {
-        const { table, items } = req.body;
-        if (!table || !Array.isArray(items) || items.length === 0) {
+        const { table, items, orderType, customerName } = req.body;
+
+        if ((!table && orderType !== "Takeaway") || !Array.isArray(items) || items.length === 0) {
             return Response.Error({
                 res,
                 status: 400,
-                message: "Table and at least one item are required.",
+                message: "Table (for Dine-In) or Takeaway and at least one item are required.",
             });
         }
 
-        // Check if table exists
-        const tableDoc = await Table.findById(table);
-        if (!tableDoc) {
-            return Response.Error({ res, status: 404, message: "Table not found" });
-        }
+        // ✅ Determine if it's a Dine-In or Takeaway order
+        const isTakeaway = orderType === "Takeaway";
 
-        // Set table status to Occupied if not already
-        if (tableDoc.status !== "Occupied") {
-            tableDoc.status = "Occupied";
-            await tableDoc.save();
+        let tableDoc = null;
+        if (!isTakeaway) {
+            // Dine-in: validate table
+            tableDoc = await Table.findById(table);
+            if (!tableDoc) {
+                return Response.Error({ res, status: 404, message: "Table not found" });
+            }
+
+            // Set table status to Occupied
+            if (tableDoc.status !== "Occupied") {
+                tableDoc.status = "Occupied";
+                await tableDoc.save();
+            }
         }
 
         const orderItems = [];
         let totalPrice = 0;
 
-        // Loop through each item to fetch menu details and build order items
+        // 🧾 Build order items
         for (const item of items) {
             const { itemId, quantity, specialInstructions, foodType } = item;
-
             if (!itemId || !quantity) continue;
 
             const menuItem = (
@@ -162,7 +168,7 @@ const createOrder = async (req, res) => {
                     Price: menuItem.Price,
                     quantity,
                     specialInstructions: specialInstructions || "",
-                    foodType: capitalizeFirstLetter(foodType), // Ensure enum case
+                    foodType: capitalizeFirstLetter(foodType),
                 });
 
                 totalPrice += itemTotal;
@@ -177,51 +183,56 @@ const createOrder = async (req, res) => {
             });
         }
 
-        // Create new Order document
+        // 🧾 Create new Order document
         const newOrder = new Order({
-            table,
+            table: isTakeaway ? null : table,
             status: "Pending",
             items: orderItems,
             Price: totalPrice,
         });
 
         await newOrder.save();
-        let bill = await Bill.findOne({ table, status: "Unpaid" });
 
-        if (!bill) {
-            // Create a new bill
+        // 🧾 Find or create Bill
+        let bill;
+        if (isTakeaway) {
             bill = new Bill({
-                table,
-                tableNumber: table.Number, // ✅ Save tableNumber at creation
-                orders: [],
-                totalAmount: 0,
+                orderType: "Takeaway",
+                customerName: customerName || "Walk-in Customer",
+                orders: [newOrder._id],
+                totalAmount: totalPrice,
                 status: "Unpaid",
             });
-            // console.log('bill', bill)
         } else {
-            // ✅ Ensure tableNumber is present even if it's an old bill without it
-            if (!bill.tableNumber) {
-                bill.tableNumber = table.number;
+            bill = await Bill.findOne({ table, status: "Unpaid" });
+            if (!bill) {
+                bill = new Bill({
+                    orderType: "Dine-In",
+                    table,
+                    tableNumber: tableDoc?.number,
+                    orders: [newOrder._id],
+                    totalAmount: totalPrice,
+                    status: "Unpaid",
+                });
+            } else {
+                bill.orders.push(newOrder._id);
+                bill.totalAmount += totalPrice;
             }
         }
 
-        // Add new order to bill if not already added
-        if (!bill.orders.includes(newOrder._id)) {
-            bill.orders.push(newOrder._id);
-        }
-
-        bill.totalAmount += totalPrice;
         await bill.save();
 
-        // Populate bill with table info
         const populatedBill = await Bill.findById(bill._id).populate({
             path: "table",
             select: "number",
         });
+
         return Response.Success({
             res,
             status: 201,
-            message: "New order created and added to bill",
+            message: isTakeaway
+                ? "Takeaway order created successfully"
+                : "Dine-in order created and added to bill",
             data: { order: newOrder, bill: populatedBill },
         });
     } catch (err) {
@@ -233,6 +244,7 @@ const createOrder = async (req, res) => {
         });
     }
 };
+
 /**
  * Get all unpaid orders for kitchen
  */

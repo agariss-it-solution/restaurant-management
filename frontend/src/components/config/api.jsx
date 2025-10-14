@@ -1,6 +1,6 @@
 // src/config/api.js
 import axios from "axios";
-const API_URL = "https://mksfood.in/api/v1/auth"; // Base URL for auth and tables
+const API_URL = "http://localhost:1020/v1/auth"; // Base URL for auth and tables
 
 // 🔹 Helper to get token
 const getToken = () => {
@@ -491,7 +491,7 @@ export const payBill = async (billId, payment) => {
 
   const res = await fetch(`${API_URL}/bills/${billId}`, {
     method: "POST",
-    headers: {  
+    headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
@@ -505,27 +505,27 @@ export const payBill = async (billId, payment) => {
 
   return await res.json();
 };
-  export const updateBill = async (billId, payload) => {
-    if (!billId) throw new Error("Bill ID required");
+export const updateBill = async (billId, payload) => {
+  if (!billId) throw new Error("Bill ID required");
 
-    const token = getToken(); // if you're using auth
-    const res = await fetch(`${API_URL}/bills/update/${billId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    
+  const token = getToken(); // if you're using auth
+  const res = await fetch(`${API_URL}/bills/update/${billId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || "Failed to update bill");
-    }
 
-    return res.json();
-  };
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || "Failed to update bill");
+  }
+
+  return res.json();
+};
 
 
 
@@ -692,7 +692,7 @@ export const cancelOrderItem = async ({ orderId, itemId }) => {
 
   try {
     const res = await axios.post(
-      "https://mksfood.in/api/v1/auth/orders/cancel",
+      `${API_URL}/orders/cancel`,
       { orderId, itemId },
       { headers: { Authorization: `Bearer ${token}` } }
     );
