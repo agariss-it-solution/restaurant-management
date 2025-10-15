@@ -2,13 +2,33 @@ import React, { useEffect, useState } from "react";
 import { FiUsers, FiTrash2, FiPlus } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { fetchTables, createTable, deleteTable } from "../config/api";
+import BootstrapModal from "./BootstrapModal"; // adjust the path if needed
 import { toast } from "react-toastify";
+
+// Modal Component
+function Modal({ table, onClose, onAction }) {
+  return (
+    <div className="modal" style={{ display: "block" }}>
+      <div className="modal-content">
+        <span className="close" onClick={onClose}>&times;</span>
+        <h4>Table {table.number} Actions</h4>
+        <button onClick={() => onAction("viewKots")}>View Kot(s)</button>
+        <button onClick={() => onAction("moveTable")}>Move Table</button>
+        <button onClick={() => onAction("printBill")}>Print Bill</button>
+        <button onClick={() => onAction("printBillAndTakePayment")}>Print Bill & Take Payment</button>
+        <button onClick={() => onAction("getPin")}>Get Pin</button>
+      </div>
+    </div>
+  );
+}
 
 function TableManagement() {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
   const [previousStatuses, setPreviousStatuses] = useState({});
   const [highlightedTable, setHighlightedTable] = useState(null);
+  const [longPressTable, setLongPressTable] = useState(null); // Store table for long press
+  const [showModal, setShowModal] = useState(false); // Control modal visibility
   const navigate = useNavigate();
 
   // Fetch tables on mount
@@ -56,7 +76,6 @@ function TableManagement() {
     }));
   };
 
-  // Add new table
   const handleAddTable = async () => {
     try {
       const existingNumbers = tables.map((t) => t.number);
@@ -75,7 +94,6 @@ function TableManagement() {
     }
   };
 
-  // Delete selected table
   const handleDeleteTable = async () => {
     if (!selectedTable) return;
 
@@ -100,6 +118,32 @@ function TableManagement() {
       console.error("⚠️ Error deleting table:", error);
       toast.error("⚠️ Error deleting table. Please try again.");
     }
+  };
+
+  // Handle long press
+  const handleLongPress = (table) => {
+    setLongPressTable(table);
+    setShowModal(true);
+  };
+
+  // Handle action in modal
+  const handleAction = (action) => {
+    console.log(`Action chosen: ${action} for Table ${longPressTable.number}`);
+    setShowModal(false); // Close modal after action
+  };
+
+  // Handle mouse down and up for long press detection
+  const handleMouseDown = (table) => {
+    const timer = setTimeout(() => {
+      handleLongPress(table);
+    }, 1000); // 1000ms for long press
+
+    // Clear timeout if mouse is released before the long press
+    const handleMouseUp = () => clearTimeout(timer);
+
+    // Attach mouse up event listener to the table div
+    const tableElement = document.getElementById(`table-${table._id}`);
+    tableElement.addEventListener("mouseup", handleMouseUp, { once: true });
   };
 
   return (
@@ -144,34 +188,39 @@ function TableManagement() {
         {tables.map((table) => {
           const isHighlighted = highlightedTable?._id === table._id;
           return (
-            <div key={table._id} className="col-6 col-sm-4 col-md-3">
+            <div
+              key={table._id}
+              id={`table-${table._id}`} // Add an ID for long press detection
+              className="col-6 col-sm-4 col-md-3"
+              onClick={() => handleTableClick(table)}
+              onMouseDown={() => handleMouseDown(table)} // Detect mouse down for long press
+              style={{ cursor: "pointer" }}
+            >
               <div
                 className={`text-center p-3 rounded shadow-sm ${table.status === "Open"
-                    ? "bg-success bg-opacity-10 border border-success"
-                    : table.status === "Occupied"
-                      ? "bg-danger bg-opacity-10 border border-danger"
-                      : "bg-white"
+                  ? "bg-success bg-opacity-10 border border-success"
+                  : table.status === "Occupied"
+                    ? "bg-danger bg-opacity-10 border border-danger"
+                    : "bg-white"
                   } ${isHighlighted ? "bg-warning bg-opacity-40" : ""}`}
-                onClick={() => handleTableClick(table)}
-                style={{ cursor: "pointer" }}
               >
                 <div
                   className={`fs-2 ${table.status === "Open"
-                      ? "text-success"
-                      : table.status === "Occupied"
-                        ? "text-danger"
-                        : "text-dark fw-medium"
+                    ? "text-success"
+                    : table.status === "Occupied"
+                      ? "text-danger"
+                      : "text-dark fw-medium"
                     }`}
                 >
                   <FiUsers />
                 </div>
                 <div className="fw-bold">Table {table.number}</div>
                 <div
-                  className={`badge mt-1 ${table.status === "Open"  
-                      ? "bg-success text-white"
-                      : table.status === "Occupied"
-                        ? "bg-danger text-white"
-                        : "bg-light text-dark fw-medium"
+                  className={`badge mt-1 ${table.status === "Open"
+                    ? "bg-success text-white"
+                    : table.status === "Occupied"
+                      ? "bg-danger text-white"
+                      : "bg-light text-dark fw-medium"
                     }`}
                 >
                   {table.status}
@@ -181,6 +230,16 @@ function TableManagement() {
           );
         })}
       </div>
+
+      {/* Show modal for long press action */}
+   {showModal && (
+  <BootstrapModal
+    table={longPressTable}
+    onClose={() => setShowModal(false)}
+    onAction={handleAction}
+  />
+)}
+
     </div>
   );
 }

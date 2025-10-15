@@ -831,6 +831,7 @@ export const getAllPaidBills = async () => {
         orderId: bill._id,
         discountValue: bill.discountValue || 0,
         paymentMethod: bill.paymentMethod,
+        customerName: bill.customerName,
         items: (order.items || []).filter(item => !item.isCancelled)
       })) || []
     );

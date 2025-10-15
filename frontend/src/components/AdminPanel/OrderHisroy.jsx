@@ -21,7 +21,7 @@ const OrderCard = () => {
       try {
         const data = await getAllPaidBills();
         setOrders(data);
-        console.log('data', data)
+
 
       } catch (err) {
         setError("Failed to fetch paid orders.");
@@ -554,6 +554,7 @@ const OrderCard = () => {
       {/* Orders grid */}
       <div className="row">
         {[...filteredOrders].slice().reverse().map((order, index) => {
+
           const isExpanded = expandedOrders[order.orderId] || false;
           const items = order.items || [];
           const visibleItems = isExpanded ? items : items.slice(0, 3);
@@ -567,9 +568,12 @@ const OrderCard = () => {
                 {/* Card Header */}
                 <div className="mb-2">
                   <div className="d-flex justify-content-between align-items-center flex-wrap">
-                    <strong className="fs-6 mb-0">
-                      Table {order.tableNumber || order.table}
+                    <strong className="fs-6">
+                      {order.customerName
+                        ? order.customerName
+                        : `Table ${order.tableNumber || order.table}`}
                     </strong>
+
                     <div className="d-flex align-items-center gap-3">
                       <Badge
                         bg="success"
@@ -579,36 +583,37 @@ const OrderCard = () => {
                         {/* {order.paymentMethod || "New"} */}
                       </Badge>
                       {order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0) ? (
-    <>
-      <Badge bg="primary" className="px-2 py-1 rounded-pill">
-        Split Payment
-      </Badge>
-      <div className="d-flex flex-column gap-1 mt-1">
-        {order.paymentAmounts.cash > 0 && (
-          <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
-            Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
-          </Badge>
-        )}
-        {order.paymentAmounts.online > 0 && (
-          <Badge bg="info" className="px-2 py-1 rounded-pill">
-            Online: ₹{order.paymentAmounts.online.toFixed(2)}
-          </Badge>
-        )}
-      </div>
-    </>
-  ) : order.paymentMethod?.toLowerCase() === "cash" ? (
-    <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
-      Cash: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
-    </Badge>
-  ) : order.paymentMethod?.toLowerCase() === "online" ? (
-    <Badge bg="info" className="px-2 py-1 rounded-pill">
-      Online: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
-    </Badge>
-  ) : (
-    <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
-      {order.paymentMethod || "Cash"}
-    </Badge>
-  )}
+                        <>
+                          <Badge bg="primary" className="px-2 py-1 rounded-pill">
+                            Split Payment
+                          </Badge>
+                          <div className="d-flex flex-column gap-1 mt-1">
+                            {order.paymentAmounts.cash > 0 && (
+                              <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
+                                Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
+                              </Badge>
+                            )}
+                            {order.paymentAmounts.online > 0 && (
+                              <Badge bg="info" className="px-2 py-1 rounded-pill">
+                                Online: ₹{order.paymentAmounts.online.toFixed(2)}
+
+                              </Badge>
+                            )}
+                          </div>
+                        </>
+                      ) : order.paymentMethod?.toLowerCase() === "cash" ? (
+                        <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
+                          Cash: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
+                        </Badge>
+                      ) : order.paymentMethod?.toLowerCase() === "online" ? (
+                        <Badge bg="info" className="px-2 py-1 rounded-pill">
+                          Online: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
+                        </Badge>
+                      ) : (
+                        <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
+                          {order.paymentMethod || "Cash"}
+                        </Badge>
+                      )}
 
 
                       <Button

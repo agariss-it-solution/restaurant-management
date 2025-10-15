@@ -4,7 +4,6 @@ import {
   Nav,
   Container,
   Button,
-  Offcanvas,
   Modal,
   Form,
 } from "react-bootstrap";
@@ -22,30 +21,28 @@ import {
 } from "react-icons/fi";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { logout, resetrequst } from "../config/api";
-import logo from "../Images/Untitled design.png"
+import logo from "../Images/Untitled design.png";
 import "../../App.css";
-import SettingsModal from "./SettingsModal"; // adjust path as needed
+import SettingsModal from "./SettingsModal";
 import { toast } from "react-toastify";
-
 
 function AdminNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
 
+  // ─── UI States ────────────────────────────────────────────────────────────────
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-
-
-
+  // ─── Forgot Password States ──────────────────────────────────────────────────
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("admin");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotMessage, setForgotMessage] = useState("");
 
+  // ─── Nav Links Configuration ────────────────────────────────────────────────
   const navLinks = [
     { to: "/admin/dashboard", icon: <FiHome />, label: "Dashboard" },
     { to: "/admin/tables", icon: <FiUsers />, label: "Tables" },
@@ -55,18 +52,10 @@ function AdminNavbar() {
     { to: "/admin/analytics", icon: <FiBarChart2 />, label: "Analytics" },
   ];
 
-  const handleCloseSidebar = () => setShowSidebar(false);
-  const handleShowSidebar = () => setShowSidebar(true);
-
-  const handleCloseModal = () => setShowModal(false);
-  const handleShowModal = () => setShowModal(true);
-
-  const handleClosePasswordModal = () => setShowPasswordModal(false);
-  const handleShowPasswordModal = () => setShowPasswordModal(true);
-
+  // ─── Sidebar & Modal Handlers ────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
-      await logout(); 
+      await logout();
     } catch (error) {
       console.error("Logout failed:", error.message);
     } finally {
@@ -75,7 +64,6 @@ function AdminNavbar() {
       navigate("/", { replace: true });
     }
   };
-
 
   const handleForgotPassword = async () => {
     if (!email) {
@@ -87,7 +75,6 @@ function AdminNavbar() {
       setForgotLoading(true);
       await resetrequst(email);
       setForgotMessage("✅ Reset link sent to your email");
-
 
       setTimeout(() => {
         setShowPasswordModal(false);
@@ -102,31 +89,31 @@ function AdminNavbar() {
     }
   };
 
-
+  // ─── Google Translate Setup ─────────────────────────────────────────────────
   useEffect(() => {
     const style = document.createElement("style");
-    style.innerHTML = `
-      .goog-te-combo option[value=""] {
-        display: none !important;
-      }
-    `;
+    style.innerHTML = `.goog-te-combo option[value=""] { display: none !important; }`;
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
   }, []);
 
-
   useEffect(() => {
     const interval = setInterval(() => {
       if (window.google?.translate?.TranslateElement) {
-        const alreadyInitialized =
-          document.querySelector('#google_translate_element .goog-te-gadget');
+        const alreadyInitialized = document.querySelector(
+          "#google_translate_element .goog-te-gadget"
+        );
 
         if (!alreadyInitialized) {
-          new window.google.translate.TranslateElement({
-            pageLanguage: 'en',
-            includedLanguages: 'en,hi,gu',
-            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-          }, 'google_translate_element');
+          new window.google.translate.TranslateElement(
+            {
+              pageLanguage: "en",
+              includedLanguages: "en,hi,gu",
+              layout:
+                window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+            },
+            "google_translate_element"
+          );
         }
 
         clearInterval(interval);
@@ -136,7 +123,7 @@ function AdminNavbar() {
     return () => clearInterval(interval);
   }, []);
 
-
+  // ─── Clone Translator for Mobile ────────────────────────────────────────────
   useEffect(() => {
     const sourceEl = document.querySelector("#google_translate_element");
     const targetEl = document.querySelector("#google_translate_element_mobile");
@@ -149,46 +136,56 @@ function AdminNavbar() {
     }
   }, [showSidebar]);
 
-
-
+  // ─── JSX Output ─────────────────────────────────────────────────────────────
   return (
     <>
-
-      <Navbar expand="lg" bg="white" className="shadow-sm py-3 ">
+      {/* ─── Top Navbar ─────────────────────────────────────────────────────── */}
+      <Navbar expand="lg" bg="white" className="shadow-sm py-3">
         <Container fluid>
+          {/* Brand */}
           <Navbar.Brand className="fw-bold text-success d-flex align-items-center gap-2">
             <img
               src={logo}
               alt="MK'S Food Logo"
-              style={{ width: '50px', height: '50px', objectFit: 'contain' }}
+              style={{ width: "50px", height: "50px", objectFit: "contain" }}
             />
             <div className="d-flex flex-column lh-sm">
               <span>MK'S Food</span>
-              <small className="text-dark fw-medium">Admin panel</small>
+              <small className="text-dark fw-medium">Admin Panel</small>
             </div>
           </Navbar.Brand>
 
-          <Nav className="mx-auto d-none d-lg-flex gap-4">
+          {/* Desktop Navigation */}
+          <Nav className="mx-auto d-none d-lg-flex gap-4 text-center">
             {navLinks.map((link) => (
               <Nav.Link
                 key={link.to}
                 as={NavLink}
                 to={link.to}
-                className={`fw-bold ${currentPath === link.to ? "text-success" : "text-dark"
-                  }`}
+                className={`fw-bold ${
+                  currentPath === link.to ? "text-success" : "text-dark"
+                }`}
               >
                 {link.icon} {link.label}
               </Nav.Link>
             ))}
           </Nav>
 
+          {/* Right-side Actions */}
           <div className="d-none d-lg-flex align-items-center gap-3">
-            <div id="google_translate_element" style={{ minWidth: "120px" }}></div>
-
-            <Button variant="outline-secondary" size="sm" onClick={handleShowModal}>
+            <div id="google_translate_element" style={{ minWidth: "120px" }} />
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setShowSettingsModal(true)}
+            >
               <FiSettings className="me-1" /> Settings
             </Button>
-            <Button variant="outline-warning" size="sm" onClick={handleShowPasswordModal}>
+            <Button
+              variant="outline-warning"
+              size="sm"
+              onClick={() => setShowPasswordModal(true)}
+            >
               <FiKey className="me-1" /> Forgot Password
             </Button>
             <Button variant="outline-danger" size="sm" onClick={handleLogout}>
@@ -196,173 +193,152 @@ function AdminNavbar() {
             </Button>
           </div>
 
+          {/* Mobile Menu Button */}
           <Button
             variant="outline-dark"
             size="sm"
             className="d-lg-none"
-            onClick={handleShowSidebar}
+            onClick={() => setShowSidebar(true)}
           >
             <FiMenu size={20} />
           </Button>
         </Container>
       </Navbar>
 
-      {/* Mobile Sidebar */}
+      {/* ─── Mobile Sidebar ─────────────────────────────────────────────────── */}
       {showSidebar && (
         <div
           className="d-lg-none position-fixed top-0 end-0 h-100 bg-white shadow"
           style={{ width: "280px", zIndex: 1050, overflowY: "auto" }}
         >
-
-
+          {/* Header */}
           <div className="d-flex justify-content-between align-items-center px-2 py-3 border-bottom">
-            {/* Logo */}
             <img
               src={logo}
               alt="MK'S Food Logo"
-              style={{ width: '50px', height: '50px', objectFit: 'contain' }}
+              style={{ width: "50px", height: "50px", objectFit: "contain" }}
             />
-
-            {/* Text */}
-            <div className="fw-bold text-success fs-5 text-start ps-2  flex-grow-1">
+            <div className="fw-bold text-success fs-5 ps-2 flex-grow-1">
               MK'S Food
             </div>
-
-            {/* Close Button */}
             <span
-              onClick={handleCloseSidebar}
-              style={{ fontSize: '1.5rem', cursor: 'pointer' }}
+              onClick={() => setShowSidebar(false)}
+              style={{ fontSize: "1.5rem", cursor: "pointer" }}
             >
               ✕
             </span>
           </div>
 
+          {/* Sidebar Body */}
+          <div className="p-3">
+            <Nav className="flex-column gap-2">
+              {navLinks.map((link) => (
+                <Nav.Link
+                  key={link.to}
+                  as={NavLink}
+                  to={link.to}
+                  onClick={() => setShowSidebar(false)}
+                  className={`fw-bold py-2 px-3 rounded d-flex align-items-center gap-2 ${
+                    currentPath === link.to
+                      ? "bg-primary text-white"
+                      : "text-dark"
+                  }`}
+                >
+                  {link.icon} {link.label}
+                </Nav.Link>
+              ))}
+            </Nav>
 
-          {/* Body */}
-         <div className="p-3">
-  <Nav className="flex-column gap-2">
-    {navLinks.map((link) => (
-      <Nav.Link
-        key={link.to}
-        as={NavLink}
-        to={link.to}
-        onClick={handleCloseSidebar}
-        className={`fw-bold py-2 px-3 rounded d-flex align-items-center gap-2 ${
-          currentPath === link.to ? "bg-primary text-white" : "text-dark"
-        }`}
-      >
-        <span className="d-flex align-items-center">{link.icon}</span>
-        <span>{link.label}</span>
-      </Nav.Link>
-    ))}
-  </Nav>
-
-  <div className="mt-4 border-top pt-3 d-flex flex-column gap-2">
-    <div
-      id="google_translate_element_mobile"
-      style={{ minHeight: "30px", minWidth: "120px" }}
-    ></div>
-
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      className="d-flex align-items-center gap-2"
-      onClick={() => {
-        handleCloseSidebar();
-        handleShowModal();
-      }}
-    >
-      <FiSettings /> <span>Settings</span>
-    </Button>
-
-    <Button
-      variant="outline-warning"
-      className="d-flex align-items-center gap-2"
-      onClick={() => {
-        handleCloseSidebar();
-        handleShowPasswordModal();
-      }}
-    >
-      <FiKey /> <span>Manage Password</span>
-    </Button>
-
-    <Button
-      variant="outline-danger"
-      size="sm"
-      className="d-flex align-items-center gap-2"
-      onClick={handleLogout}
-    >
-      <FiLogOut /> <span>Logout</span>
-    </Button>
-  </div>
-</div>
-
+            <div className="mt-4 border-top pt-3 d-flex flex-column gap-2">
+              <div
+                id="google_translate_element_mobile"
+                style={{ minHeight: "30px", minWidth: "120px" }}
+              />
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="d-flex align-items-center gap-2"
+                onClick={() => {
+                  setShowSidebar(false);
+                  setShowSettingsModal(true);
+                }}
+              >
+                <FiSettings /> Settings
+              </Button>
+              <Button
+                variant="outline-warning"
+                className="d-flex align-items-center gap-2"
+                onClick={() => {
+                  setShowSidebar(false);
+                  setShowPasswordModal(true);
+                }}
+              >
+                <FiKey /> Manage Password
+              </Button>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                className="d-flex align-items-center gap-2"
+                onClick={handleLogout}
+              >
+                <FiLogOut /> Logout
+              </Button>
+            </div>
+          </div>
         </div>
       )}
-      <SettingsModal show={showModal} onHide={handleCloseModal} />
 
-      {/* Forgot Password Modal */}
-      <Modal show={showPasswordModal} onHide={handleClosePasswordModal} centered>
+      {/* ─── Settings Modal ─────────────────────────────────────────────────── */}
+      <SettingsModal
+        show={showSettingsModal}
+        onHide={() => setShowSettingsModal(false)}
+      />
+
+      {/* ─── Forgot Password Modal ──────────────────────────────────────────── */}
+      <Modal
+        show={showPasswordModal}
+        onHide={() => setShowPasswordModal(false)}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Forgot Password</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div style={{ textAlign: "center" }}>
+          <div className="text-center">
             <p>Select role and enter your email to reset password</p>
 
             <Form.Select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              style={{
-                marginBottom: "12px",
-                padding: "10px",
-                borderRadius: "8px",
-              }}
+              className="mb-3"
             >
               <option value="admin">Admin</option>
               <option value="waiter">Waiter</option>
               <option value="chef">Chef</option>
             </Form.Select>
 
-            <input
+            <Form.Control
               type="email"
               placeholder="Enter email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "10px",
-                margin: "6px 0 15px 0",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-              }}
+              className="mb-3"
             />
 
-            <button
-              onClick={handleForgotPassword}
+            <Button
+              variant="primary"
+              className="w-100 fw-bold"
               disabled={forgotLoading}
-              style={{
-                width: "100%",
-                background: "#9333ea",
-                color: "#fff",
-                border: "none",
-                padding: "12px",
-                borderRadius: "8px",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
+              onClick={handleForgotPassword}
             >
               {forgotLoading ? "Sending..." : "Send Reset Link"}
-            </button>
+            </Button>
 
             {forgotMessage && (
               <p
-                style={{
-                  marginTop: "15px",
-                  textAlign: "center",
-                  color: forgotMessage.includes("✅") ? "green" : "red",
-                }}
+                className={`mt-3 text-center fw-semibold ${
+                  forgotMessage.includes("✅") ? "text-success" : "text-danger"
+                }`}
               >
                 {forgotMessage}
               </p>
@@ -370,7 +346,10 @@ function AdminNavbar() {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleClosePasswordModal}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowPasswordModal(false)}
+          >
             Close
           </Button>
         </Modal.Footer>

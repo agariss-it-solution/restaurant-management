@@ -11,34 +11,51 @@ const OrderCard = () => {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [editingOrders, setEditingOrders] = useState({});
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const data = await fetchOrders();
-        const normalizedOrders = (data.data || []).map((order) => ({
-          ...order,
-          orderId: order.orderId || order._id,
-          customerName: order.customerName,
-          items: (order.items || []).map((item, index) => ({
-            ...item,
-            itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
-            quantity: item.quantity || 1,
-            isCancelled: item.isCancelled || false,
-          })),
-        }));
-        console.log('data.data', normalizedOrders)
-        setOrders(normalizedOrders);
-        const clone = normalizedOrders.map((o) => structuredClone(o));
-        setOriginalOrders(clone);
-      } catch (err) {
-        console.error("Error loading orders:", err);
-        setError("Failed to fetch orders.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadOrders();
-  }, []);
+useEffect(() => {
+  const loadOrders = async () => {
+    try {
+      const data = await fetchOrders();
+      const normalizedOrders = (data.data || []).map((order) => ({
+        ...order,
+        orderId: order.orderId || order._id,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || null,
+        items: (order.items || []).map((item, index) => ({
+          ...item,
+          itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
+          quantity: item.quantity || 1,
+          isCancelled: item.isCancelled || false,
+        })),
+      }));
+
+      // Group orders by tableNumber / customerName
+      const groupedOrdersMap = new Map();
+
+      normalizedOrders.forEach((order) => {
+        const key = order.tableNumber || order.customerName || "Takeaway";
+
+        if (!groupedOrdersMap.has(key)) {
+          groupedOrdersMap.set(key, { ...order, items: [...order.items] });
+        } else {
+          const existing = groupedOrdersMap.get(key);
+          existing.items = [...existing.items, ...order.items];
+        }
+      });
+
+      const groupedOrders = Array.from(groupedOrdersMap.values());
+
+      setOrders(groupedOrders);
+      setOriginalOrders(groupedOrders.map((o) => structuredClone(o)));
+    } catch (err) {
+      console.error("Error loading orders:", err);
+      setError("Failed to fetch orders.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  loadOrders();
+}, []);
+
 
   const handleQuantityChange = (orderId, itemId, delta) => {
     setOrders((prev) =>
