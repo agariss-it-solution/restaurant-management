@@ -11,10 +11,10 @@ function BootstrapModal({ table, onClose, onAction }) {
   const [fetchError, setFetchError] = useState(null);
 
   const actions = [
-    // { key: "viewKots", label: "View KOT(s)" },
+    { key: "viewKots", label: "View KOT(s)" },
     { key: "moveTable", label: "Move Table" },
-    // { key: "printBill", label: "Print Bill" },
-    // { key: "printBillAndTakePayment", label: "Print Bill & Take Payment" },
+    { key: "printBill", label: "Print Bill" },
+    { key: "printBillAndTakePayment", label: "Print Bill & Take Payment" },
   ];
 
   // Fetch available tables when entering move mode
