@@ -1,6 +1,6 @@
 // src/config/api.js
 import axios from "axios";
-const API_URL = "http://localhost:1020/v1/auth"; // Base URL for auth and tables
+const API_URL = "http://192.168.29.36:1020/v1/auth"; // Base URL for auth and tables
 
 // 🔹 Helper to get token
 const getToken = () => {
@@ -883,7 +883,10 @@ export const getAllPaidBills = async () => {
         orderId: bill._id,
         discountValue: bill.discountValue || 0,
         paymentMethod: bill.paymentMethod,
+        paymentAmounts: bill.paymentAmounts, // ✅ ADD THIS LINE
         customerName: bill.customerName,
+        _id: bill._id, // ✅ Also add this for consistency
+        totalAmount: bill.totalAmount, // ✅ Add this too
         items: (order.items || []).filter(item => !item.isCancelled)
       })) || []
     );

@@ -44,6 +44,34 @@ const OrderCard = () => {
     });
   };
 
+  // Helper function to calculate cash amount for any payment type
+  const getCashAmount = (order) => {
+    if (order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)) {
+      // Split payment - return the cash portion
+      return order.paymentAmounts.cash || 0;
+    } else if (order.paymentMethod?.toLowerCase() === "cash") {
+      // Pure cash payment - return full amount
+      return order.totalAmount || calculateOrderTotal(order);
+    } else {
+      // Online or other payment methods - cash is 0
+      return 0;
+    }
+  };
+
+  // Helper function to calculate online amount for any payment type
+  const getOnlineAmount = (order) => {
+    if (order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)) {
+      // Split payment - return the online portion
+      return order.paymentAmounts.online || 0;
+    } else if (order.paymentMethod?.toLowerCase() === "online") {
+      // Pure online payment - return full amount
+      return order.totalAmount || calculateOrderTotal(order);
+    } else {
+      // Cash or other payment methods - online is 0
+      return 0;
+    }
+  };
+
   // ---------------- EXPORT EXCEL ----------------
   const exportExcel = () => {
     const mergedOrders = mergeOrdersById(getFilteredOrders());
@@ -258,10 +286,6 @@ const OrderCard = () => {
     }
   };
 
-
-
-
-
   const handlePrintOrder = async (order) => {
     let restaurant = {
       name: "MK's Food",
@@ -430,11 +454,6 @@ const OrderCard = () => {
     }
   };
 
-
-
-
-
-
   const calculateOrderTotal = (order) => {
     if (!order) return 0;
     // If Price exists and is a number-like value, use it
@@ -448,8 +467,6 @@ const OrderCard = () => {
       return sum + price * qty;
     }, 0);
   };
-
-
 
   if (loading) return <div className="text-center py-5">Loading...</div>;
   if (error) return <div className="text-danger py-5">{error}</div>;
@@ -477,7 +494,6 @@ const OrderCard = () => {
       }
     });
 
-
     Object.values(merged).forEach((order) => {
       const total = (order.items || []).reduce((sum, item) => {
         const price = Number(item.Price ?? item.price) || 0;
@@ -491,7 +507,6 @@ const OrderCard = () => {
     return Object.values(merged);
   };
 
-
   const filteredOrders = mergeOrdersById(getFilteredOrders());
 
   return (
@@ -500,7 +515,6 @@ const OrderCard = () => {
       <div className="d-flex flex-column flex-md-row flex-wrap gap-2 justify-content-between align-items-start mb-3">
 
         <h4 className="text-capitalize mb-2 mb-md-0">Paid Bill History</h4>
-
 
         <div className="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-end   w-md-auto">
 
@@ -519,7 +533,6 @@ const OrderCard = () => {
               />
 
             </div>
-
 
             <div className="d-flex flex-column flex-grow-1">
               <label className="small mb-0 fw-bold">End Date</label>
@@ -550,7 +563,6 @@ const OrderCard = () => {
         </div>
       </div>
 
-
       {/* Orders grid */}
       <div className="row">
         {[...filteredOrders].slice().reverse().map((order, index) => {
@@ -559,7 +571,9 @@ const OrderCard = () => {
           const items = order.items || [];
           const visibleItems = isExpanded ? items : items.slice(0, 3);
           const hiddenCount = items.length - 3;
-          // console.log('order.paymentAmounts', order)
+
+          const cashAmount = getCashAmount(order);
+          const onlineAmount = getOnlineAmount(order);
 
           return (
             <div key={index} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
@@ -580,42 +594,7 @@ const OrderCard = () => {
                         className="px-2 py-1 rounded-pill text-capitalize"
                       >
                         {order.status || "New"}
-                        {/* {order.paymentMethod || "New"} */}
                       </Badge>
-                      {order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0) ? (
-                        <>
-                          <Badge bg="primary" className="px-2 py-1 rounded-pill">
-                            Split Payment
-                          </Badge>
-                          <div className="d-flex flex-column gap-1 mt-1">
-                            {order.paymentAmounts.cash > 0 && (
-                              <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
-                                Cash: ₹{order.paymentAmounts.cash.toFixed(2)}
-                              </Badge>
-                            )}
-                            {order.paymentAmounts.online > 0 && (
-                              <Badge bg="info" className="px-2 py-1 rounded-pill">
-                                Online: ₹{order.paymentAmounts.online.toFixed(2)}
-
-                              </Badge>
-                            )}
-                          </div>
-                        </>
-                      ) : order.paymentMethod?.toLowerCase() === "cash" ? (
-                        <Badge bg="warning" className="px-2 py-1 rounded-pill text-dark">
-                          Cash: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
-                        </Badge>
-                      ) : order.paymentMethod?.toLowerCase() === "online" ? (
-                        <Badge bg="info" className="px-2 py-1 rounded-pill">
-                          Online: ₹{order.totalAmount?.toFixed(2) || calculateOrderTotal(order).toFixed(2)}
-                        </Badge>
-                      ) : (
-                        <Badge bg="secondary" className="px-2 py-1 rounded-pill text-capitalize">
-                          {order.paymentMethod || "Cash"}
-                        </Badge>
-                      )}
-
-
                       <Button
                         variant="outline-primary"
                         size="sm"
@@ -688,13 +667,12 @@ const OrderCard = () => {
                   )}
                 </div>
 
-                {/* Total + Discount Edit */}
+                {/* Total + Discount Edit + Payment Breakdown */}
                 <div className="mt-3">
                   <div className="d-flex justify-content-between fw-bold">
                     <span>Total:</span>
                     <span className="text-success">
                       ₹{(order.totalAmount || calculateOrderTotal(order)).toFixed(2)}
-
                     </span>
                   </div>
 
@@ -705,19 +683,50 @@ const OrderCard = () => {
                     </div>
                   ) : null}
 
-                  <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1">
+                  <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1 mb-2">
                     <span>Final:</span>
                     <span className="text-primary">
                       ₹{((order.totalAmount || calculateOrderTotal(order)) - (order.discountValue || 0)).toFixed(2)}
                     </span>
                   </div>
 
+                  {/* Cash Payment Breakdown Section */}
+                  {order.paymentAmounts && (order.paymentAmounts.cash > 0 && order.paymentAmounts.online > 0) ? (
+                    <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
+                      <div className="fw-semibold mb-2 text-dark">Split Payment:</div>
+                      <div className="d-flex justify-content-between mb-1">
+                        <span>💵 Cash:</span>
+                        <span className="fw-semibold text-warning">₹{order.paymentAmounts.cash.toFixed(2)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <span>💳 Online:</span>
+                        <span className="fw-semibold text-info">₹{order.paymentAmounts.online.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : order.paymentMethod?.toLowerCase() === "cash" ? (
+                    <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
+                      <div className="fw-semibold mb-2 text-dark">Payment:</div>
+                      <div className="d-flex justify-content-between">
+                        <span>💵 Cash:</span>
+                        <span className="fw-semibold text-warning">₹{calculateOrderTotal(order).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-info">
+                      <div className="fw-semibold mb-2 text-dark">Payment:</div>
+                      <div className="d-flex justify-content-between">
+                        <span>💳 Online:</span>
+                        <span className="fw-semibold text-info">₹{calculateOrderTotal(order).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Edit Discount Section */}
                   {!order.isEditing ? (
                     <Button
                       variant="outline-secondary"
                       size="sm"
-                      className="mt-2 w-100"
+                      className="w-100"
                       onClick={() =>
                         setOrders((prev) =>
                           prev.map((o) =>
@@ -729,7 +738,7 @@ const OrderCard = () => {
                       Edit Discount
                     </Button>
                   ) : (
-                    <div className="mt-2">
+                    <div>
                       <input
                         type="number"
                         className="form-control form-control-sm"

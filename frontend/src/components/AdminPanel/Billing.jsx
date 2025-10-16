@@ -446,7 +446,7 @@ function BillingRevenue() {
                         <span>
                           {bill.customerName
                             ? bill.customerName // Show customer name for Takeaway
-                            : `Table ${bill.table?.number || "-"}`} 
+                            : `Table ${bill.table?.number || "-"}`}
                         </span>
                         <span className="text-danger">₹{billTotal.toFixed(2)}</span>
                       </div>

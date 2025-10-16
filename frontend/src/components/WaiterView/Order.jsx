@@ -11,32 +11,51 @@ const OrderCard = () => {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [editingOrders, setEditingOrders] = useState({});
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const data = await fetchOrders();
-        const normalizedOrders = (data.data || []).map((order) => ({
-          ...order,
-          orderId: order.orderId || order._id,
-          items: (order.items || []).map((item, index) => ({
-            ...item,
-            itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
-            quantity: item.quantity || 1,
-            isCancelled: item.isCancelled || false,
-          })),
-        }));
-        setOrders(normalizedOrders);
-        const clone = normalizedOrders.map((o) => structuredClone(o));
-        setOriginalOrders(clone);
-      } catch (err) {
-        console.error("Error loading orders:", err);
-        setError("Failed to fetch orders.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadOrders();
-  }, []);
+useEffect(() => {
+  const loadOrders = async () => {
+    try {
+      const data = await fetchOrders();
+      const normalizedOrders = (data.data || []).map((order) => ({
+        ...order,
+        orderId: order.orderId || order._id,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || null,
+        items: (order.items || []).map((item, index) => ({
+          ...item,
+          itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
+          quantity: item.quantity || 1,
+          isCancelled: item.isCancelled || false,
+        })),
+      }));
+
+      // Group orders by tableNumber / customerName
+      const groupedOrdersMap = new Map();
+
+      normalizedOrders.forEach((order) => {
+        const key = order.tableNumber || order.customerName || "Takeaway";
+
+        if (!groupedOrdersMap.has(key)) {
+          groupedOrdersMap.set(key, { ...order, items: [...order.items] });
+        } else {
+          const existing = groupedOrdersMap.get(key);
+          existing.items = [...existing.items, ...order.items];
+        }
+      });
+
+      const groupedOrders = Array.from(groupedOrdersMap.values());
+
+      setOrders(groupedOrders);
+      setOriginalOrders(groupedOrders.map((o) => structuredClone(o)));
+    } catch (err) {
+      console.error("Error loading orders:", err);
+      setError("Failed to fetch orders.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  loadOrders();
+}, []);
+
 
   const handleQuantityChange = (orderId, itemId, delta) => {
     setOrders((prev) =>
@@ -135,8 +154,8 @@ const OrderCard = () => {
     );
 
   return (
-    <Container fluid className="p-3">
-      <h4 className="mb-3">Orders</h4>
+    <Container fluid className="p-lg-3">
+      <h4 className="my-3">Orders</h4>
       <div className="row">
         {[...orders]
           .sort((a, b) => {
@@ -191,14 +210,18 @@ const OrderCard = () => {
                   <div className="d-flex justify-content-between align-items-start mb-3">
                     <div>
                       <strong className="fs-6">
-                        {order.customerName
-                          ? order.customerName
-                          : `Table ${order.tableNumber || order.table}`}
+                        {order.tableNumber
+                          ? `Table ${order.tableNumber}`
+                          : order.customerName
+                            ? order.customerName
+                            : "Takeaway"}
+                            {console.log('order.customerName', order)}
                       </strong>
                       <div className="text-dark fw-medium small">
                         Order ID: #{order.orderId}
                       </div>
                     </div>
+
                     {!isEditing && (
                       <Badge
                         bg={isReady ? "success" : "danger"}
@@ -208,7 +231,6 @@ const OrderCard = () => {
                       </Badge>
                     )}
                   </div>
-
                   {/* Items */}
                   <div className="mb-2 flex-grow-1 overflow-auto" style={{ maxHeight: "220px" }}>
                     {visibleItems.map((item, i) => {
@@ -345,6 +367,8 @@ const OrderCard = () => {
             );
           })}
       </div>
+
+
     </Container>
   );
 };

@@ -144,25 +144,36 @@ function TakeawayMenu() {
         : currentCategory?.items || [];
 
     return (
-        <div className="py-4">
+        <div className="py-2">
+            {/* Sticky Customer Name - Desktop */}
+            <div className="d-none d-lg-block sticky-top bg-white px-3 py-2 mb-2 border-bottom shadow-sm" style={{ top: "0", zIndex: 100 }}>
+                <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Enter Customer Name..."
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                />
+            </div>
+
+            {/* Sticky Customer Name - Mobile */}
+            <div className="d-lg-none sticky-top bg-white px-2 py-1 mb-1 border-bottom shadow-sm" style={{ top: "0", zIndex: 100 }}>
+                <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Enter Customer Name..."
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                />
+            </div>
+
             <div className="row">
                 {/* LEFT: Menu */}
                 <div className="col-lg-9" style={{ maxHeight: "80vh", overflowY: "auto" }}>
-                    <h4 className="fw-bold">Takeaway Orders</h4>
+                    <h4 className="fw-bold pt-2">Takeaway Orders</h4>
                     <p className="text-dark fw-medium mb-3">
                         Select items to add to this takeaway order
                     </p>
-
-                    {/* Customer Name */}
-                    <div className="mb-3">
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Enter Customer Name..."
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                        />
-                    </div>
 
                     {/* Categories */}
                     <div className="row g-2 mb-3">
@@ -253,159 +264,157 @@ function TakeawayMenu() {
                     </div>
                 </div>
 
-       {/* Order Summary */}
-{order.length > 0 && (
-  <>
-    {/* 🖥️ Desktop Sidebar */}
-    <div className="d-none d-lg-flex flex-column bg-white border rounded shadow-sm p-3"
-         style={{
-           position: "sticky",
-           top: "20px",
-           right: "20px",
-           width: "380px",
-           maxHeight: "80vh"
-         }}>
-      <h5 className="fw-bold mb-3">🧾 Current Order</h5>
+                {/* Order Summary */}
+                {order.length > 0 && (
+                    <>
+                        {/* Desktop Sidebar */}
+                        <div className="d-none d-lg-flex flex-column bg-white border rounded shadow-sm p-3"
+                            style={{
+                                position: "sticky",
+                                top: "20px",
+                                right: "20px",
+                                width: "380px",
+                                maxHeight: "80vh"
+                            }}>
+                            <h5 className="fw-bold mb-3">🧾 Current Order</h5>
 
-      {/* Scrollable List */}
-      <div className="flex-grow-1 overflow-auto mb-3" style={{ maxHeight: "calc(80vh - 140px)" }}>
-        {order.map((item, idx) => (
-          <div key={idx} className="border rounded p-2 mb-2 small bg-light">
-            <div className="d-flex justify-content-between align-items-start">
-              <div className="flex-grow-1">
-                <div className="fw-semibold">{item.name}</div>
-                <div className="d-flex align-items-center gap-2 mt-1">
-                  <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
-                    {item.foodType}
-                  </span>
-                  {item.instructions && (
-                    <small className="text-muted fst-italic">"{item.instructions}"</small>
-                  )}
-                </div>
-              </div>
-              <div className="text-success fw-bold">₹{(item.Price * item.qty).toFixed(2)}</div>
-            </div>
+                            {/* Scrollable List */}
+                            <div className="flex-grow-1 overflow-auto mb-3" style={{ maxHeight: "calc(80vh - 140px)" }}>
+                                {order.map((item, idx) => (
+                                    <div key={idx} className="border rounded p-2 mb-2 small bg-light">
+                                        <div className="d-flex justify-content-between align-items-start">
+                                            <div className="flex-grow-1">
+                                                <div className="fw-semibold">{item.name}</div>
+                                                <div className="d-flex align-items-center gap-2 mt-1">
+                                                    <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
+                                                        {item.foodType}
+                                                    </span>
+                                                    {item.instructions && (
+                                                        <small className="text-muted fst-italic">"{item.instructions}"</small>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-success fw-bold">₹{(item.Price * item.qty).toFixed(2)}</div>
+                                        </div>
 
-            {/* Quantity Controls + Remove */}
-            <div className="d-flex align-items-center justify-content-between mt-2">
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  className="btn btn-outline-secondary btn-sm px-2 py-0"
-                  onClick={() => handleQuantityChange(item._id, -1)}
-                >−</button>
-                <span>{item.qty}</span>
-                <button
-                  className="btn btn-outline-secondary btn-sm px-2 py-0"
-                  onClick={() => handleQuantityChange(item._id, 1)}
-                >+</button>
-              </div>
-              <button
-                className="btn btn-link text-danger p-0 small"
-                onClick={() => setOrder(order.filter((_, i) => i !== idx))}
-              >
-                remove
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+                                        {/* Quantity Controls + Remove */}
+                                        <div className="d-flex align-items-center justify-content-between mt-2">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <button
+                                                    className="btn btn-outline-secondary btn-sm px-2 py-0"
+                                                    onClick={() => handleQuantityChange(item._id, -1)}
+                                                >−</button>
+                                                <span>{item.qty}</span>
+                                                <button
+                                                    className="btn btn-outline-secondary btn-sm px-2 py-0"
+                                                    onClick={() => handleQuantityChange(item._id, 1)}
+                                                >+</button>
+                                            </div>
+                                            <button
+                                                className="btn btn-link text-danger p-0 small"
+                                                onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+                                            >
+                                                remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-      {/* Footer */}
-      <div className="border-top pt-2 mt-auto">
-        <div className="d-flex justify-content-between fw-bold mb-2">
-          <span>Total:</span>
-          <span className="text-success">₹{getTotal().toFixed(2)}</span>
-        </div>
-        <button
-          className="btn btn-success w-100"
-          disabled={order.length === 0 || !customerName.trim()}
-          onClick={handleSubmitOrder}
-        >
-          Send to Kitchen
-        </button>
-      </div>
-    </div>
+                            {/* Footer */}
+                            <div className="border-top pt-2 mt-auto">
+                                <div className="d-flex justify-content-between fw-bold mb-2">
+                                    <span>Total:</span>
+                                    <span className="text-success">₹{getTotal().toFixed(2)}</span>
+                                </div>
+                                <button
+                                    className="btn btn-success w-100"
+                                    disabled={order.length === 0 || !customerName.trim()}
+                                    onClick={handleSubmitOrder}
+                                >
+                                    Send to Kitchen
+                                </button>
+                            </div>
+                        </div>
 
-    {/* 📱 Mobile View */}
-    <div className="d-lg-none">
-      {/* Bottom Bar */}
-      <div
-        className="fixed-bottom bg-white border-top p-3 d-flex justify-content-between align-items-center shadow-sm"
-        style={{ zIndex: 1060 }}
-        onClick={() => setShowOrderList((prev) => !prev)}
-      >
-        <div className="fw-bold">Total: ₹{getTotal().toFixed(2)}</div>
-        <button
-          className="btn btn-success"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleSubmitOrder();
-            setShowOrderList(false);
-          }}
-        >
-          Send to Kitchen
-        </button>
-      </div>
+                        {/* Mobile View */}
+                        <div className="d-lg-none w-100">
+                            {/* Bottom Bar */}
+                            <div
+                                className="fixed-bottom bg-white border-top p-3 d-flex justify-content-between align-items-center shadow-sm"
+                                style={{ zIndex: 1060 }}
+                                onClick={() => setShowOrderList((prev) => !prev)}
+                            >
+                                <div className="fw-bold">Total: ₹{getTotal().toFixed(2)}</div>
+                                <button
+                                    className="btn btn-success"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSubmitOrder();
+                                        setShowOrderList(false);
+                                    }}
+                                >
+                                    Send to Kitchen
+                                </button>
+                            </div>
 
-      {/* Slide-Up Drawer */}
-      <div
-        className="bg-white border-top position-fixed start-0 end-0 shadow-lg transition-all"
-        style={{
-          bottom: showOrderList ? "70px" : "-100%",
-          maxHeight: "35vh",
-          overflowY: "auto",
-          zIndex: 1050,
-          padding: "15px",
-          transition: "bottom 0.3s ease-in-out",
-          borderTopLeftRadius: "12px",
-          borderTopRightRadius: "12px",
-        }}
-      >
-        <h6 className="fw-semibold text-center border-bottom pb-2 mb-3">Current Order</h6>
-        {order.map((item, idx) => (
-          <div key={idx} className="border rounded p-2 mb-2 small bg-light">
-            <div className="d-flex justify-content-between align-items-start">
-              <div className="flex-grow-1">
-                <div className="fw-semibold">{item.name}</div>
-                <div className="d-flex align-items-center gap-2 mt-1">
-                  <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
-                    {item.foodType}
-                  </span>
-                  {item.instructions && (
-                    <small className="text-muted fst-italic">"{item.instructions}"</small>
-                  )}
-                </div>
-              </div>
-              <div className="text-success fw-bold">₹{(item.Price * item.qty).toFixed(2)}</div>
-            </div>
+                            {/* Slide-Up Drawer */}
+                            <div
+                                className="bg-white border-top position-fixed start-0 end-0 shadow-lg transition-all"
+                                style={{
+                                    bottom: showOrderList ? "70px" : "-100%",
+                                    maxHeight: "35vh",
+                                    overflowY: "auto",
+                                    zIndex: 1050,
+                                    padding: "15px",
+                                    transition: "bottom 0.3s ease-in-out",
+                                    borderTopLeftRadius: "12px",
+                                    borderTopRightRadius: "12px",
+                                }}
+                            >
+                                <h6 className="fw-semibold text-center border-bottom pb-2 mb-3">Current Order</h6>
+                                {order.map((item, idx) => (
+                                    <div key={idx} className="border rounded p-2 mb-2 small bg-light">
+                                        <div className="d-flex justify-content-between align-items-start">
+                                            <div className="flex-grow-1">
+                                                <div className="fw-semibold">{item.name}</div>
+                                                <div className="d-flex align-items-center gap-2 mt-1">
+                                                    <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
+                                                        {item.foodType}
+                                                    </span>
+                                                    {item.instructions && (
+                                                        <small className="text-muted fst-italic">"{item.instructions}"</small>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-success fw-bold">₹{(item.Price * item.qty).toFixed(2)}</div>
+                                        </div>
 
-            <div className="d-flex align-items-center justify-content-between mt-2">
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  className="btn btn-outline-secondary btn-sm px-2 py-0"
-                  onClick={() => handleQuantityChange(item._id, -1)}
-                >−</button>
-                <span>{item.qty}</span>
-                <button
-                  className="btn btn-outline-secondary btn-sm px-2 py-0"
-                  onClick={() => handleQuantityChange(item._id, 1)}
-                >+</button>
-              </div>
-              <button
-                className="btn btn-link text-danger p-0 small"
-                onClick={() => setOrder(order.filter((_, i) => i !== idx))}
-              >
-                remove
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </>
-)}
-
-
+                                        <div className="d-flex align-items-center justify-content-between mt-2">
+                                            <div className="d-flex align-items-center gap-2">
+                                                <button
+                                                    className="btn btn-outline-secondary btn-sm px-2 py-0"
+                                                    onClick={() => handleQuantityChange(item._id, -1)}
+                                                >−</button>
+                                                <span>{item.qty}</span>
+                                                <button
+                                                    className="btn btn-outline-secondary btn-sm px-2 py-0"
+                                                    onClick={() => handleQuantityChange(item._id, 1)}
+                                                >+</button>
+                                            </div>
+                                            <button
+                                                className="btn btn-link text-danger p-0 small"
+                                                onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+                                            >
+                                                remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Add Item Modal */}

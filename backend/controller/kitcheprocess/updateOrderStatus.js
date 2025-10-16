@@ -1,10 +1,10 @@
 const Order = require("../../models/order");
-const Response = require("../../helper/errHandler"); // Assuming you have a helper for responses
+const Response = require("../../helper/errHandler");
 
 // Update order status (for kitchen/progress)
 const updateOrderStatus = async (req, res) => {
     try {
-        const { status } = req.body;    
+        const { status } = req.body;
         const validStatuses = ["Pending", "Ready"];
 
         if (!status || !validStatuses.includes(status)) {
@@ -46,5 +46,4 @@ const updateOrderStatus = async (req, res) => {
         });
     }
 };
-
 module.exports = updateOrderStatus;
