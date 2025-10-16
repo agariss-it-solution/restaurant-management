@@ -29,7 +29,9 @@ app.use(authtoken);
 
 // ----- Table Routes -----
 app.post("/table", tableController.createTable);
+app.post("/tablemove", tableController.moveTable);
 app.get("/table", tableController.getTables);
+app.get("/table/available", tableController.getAvailableTables);
 app.put("/table/:id", tableController.selectTable);
 app.delete("/table/:id", tableController.deleteTable);
 

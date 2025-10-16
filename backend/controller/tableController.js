@@ -1,5 +1,7 @@
 const Table = require('../models/Table')
 const Response = require("../helper/errHandler");
+const Order  = require('../models/order');
+const Bill  = require('../models/bill');
 
 // Get all tables
 
@@ -22,9 +24,34 @@ const getTables = async (req, res) => {
   }
 };
 
+const getAvailableTables = async (req, res) => {
+  try {
+    const { status } = req.query; // get status filter from query param
+
+    const filter = {};
+    if (status) filter.status = status; // filter by status if provided
+
+    const tables = await Table.find(filter).sort({ number: 1 });
+
+    return Response.Success({
+      res,
+      status: 200,
+      message: "Tables fetched successfully",
+      data: tables,
+    });
+  } catch (err) {
+    return Response.Error({
+      res,
+      status: 500,
+      message: "Error fetching tables",
+      error: err.message,
+    });
+  }
+};
+
 
 // Select (occupy) a table
- const selectTable = async (req, res) => {
+const selectTable = async (req, res) => {
   try {
     const { id } = req.params;
     const table = await Table.findByIdAndUpdate(
@@ -78,7 +105,7 @@ const createTable = async (req, res) => {
 };
 
 //  Delete Table
- const deleteTable = async (req, res) => {
+const deleteTable = async (req, res) => {
   try {
     const { id } = req.params;
     const table = await Table.findByIdAndDelete(id);
@@ -104,10 +131,94 @@ const createTable = async (req, res) => {
   }
 };
 
+const moveTable = async (req, res) => {
+  try {
+    const { fromTableId, toTableId } = req.body;
 
-module.exports={
-    getTables,
-    selectTable,
-    createTable,
-    deleteTable
+    if (!fromTableId || !toTableId) {
+      return Response.Error({
+        res,
+        status: 400,
+        message: "Both fromTableId and toTableId are required",
+      });
+    }
+
+    const fromTable = await Table.findById(fromTableId);
+    const toTable = await Table.findById(toTableId);
+
+    if (!fromTable || !toTable) {
+      return Response.Error({
+        res,
+        status: 404,
+        message: "One or both tables not found",
+      });
+    }
+
+    if (fromTable.status !== "Occupied") {
+      return Response.Error({
+        res,
+        status: 400,
+        message: `Source table (Table ${fromTable.number}) is not Occupied.`,
+      });
+    }
+
+    if (toTable.status !== "Available") {
+      return Response.Error({
+        res,
+        status: 400,
+        message: `Target table (Table ${toTable.number}) is not Available.`,
+      });
+    }
+
+    // --- Migrate orders ---
+    const orders = await Order.find({ table: fromTableId, status: { $in: ["Pending", "InProgress", "WhateverYourStatuses"] } });
+    for (const ord of orders) {
+      ord.table = toTableId;
+      await ord.save();
+    }
+
+    // --- Migrate bill(s) ---
+    const bills = await Bill.find({ table: fromTableId, status: { $in: ["Unpaid", "Pending"] } });
+    for (const bill of bills) {
+      bill.table = toTableId;
+      // Optionally also update tableNumber or other denormalized field
+      bill.tableNumber = toTable.number;
+      await bill.save();
+    }
+
+    // Finally update statuses of tables
+    fromTable.status = "Available";
+    toTable.status = "Occupied";
+    await fromTable.save();
+    await toTable.save();
+
+    return Response.Success({
+      res,
+      status: 200,
+      message: `Moved table data (orders & bills) from Table ${fromTable.number} to Table ${toTable.number}.`,
+      data: {
+        from: fromTable,
+        to: toTable,
+        movedOrdersCount: orders.length,
+        movedBillsCount: bills.length,
+      }
+    });
+  } catch (err) {
+    console.error("Error in moveTable:", err);
+    return Response.Error({
+      res,
+      status: 500,
+      message: "Error moving table data along with orders & bills",
+      error: err.message,
+    });
+  }
+};
+
+module.exports = {
+  getTables,
+  getAvailableTables,
+  selectTable,
+  createTable,
+  deleteTable,
+  moveTable 
 }

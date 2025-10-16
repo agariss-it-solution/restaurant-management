@@ -25,6 +25,7 @@ function Modal({ table, onClose, onAction }) {
 function TableManagement() {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState(null);
+  const [availableTables, setAvailableTables] = useState([]);
   const [previousStatuses, setPreviousStatuses] = useState({});
   const [highlightedTable, setHighlightedTable] = useState(null);
   const [longPressTable, setLongPressTable] = useState(null); // Store table for long press
@@ -122,15 +123,42 @@ function TableManagement() {
 
   // Handle long press
   const handleLongPress = (table) => {
-    setLongPressTable(table);
-    setShowModal(true);
+    if (table.status === "Occupied") {
+      setLongPressTable(table);
+      setShowModal(true);
+    } else {
+      toast.info("Modal is only available for occupied tables.");
+    }
   };
 
+
   // Handle action in modal
-  const handleAction = (action) => {
-    console.log(`Action chosen: ${action} for Table ${longPressTable.number}`);
-    setShowModal(false); // Close modal after action
+  const handleAction = (action, payload) => {
+    console.log(`Action chosen: ${action}`, payload);
+
+    if (action === "moveTableSuccess" && payload?.data) {
+      const { from, to } = payload.data;
+
+      // Update the tables state with the updated 'from' and 'to' tables
+      setTables((prevTables) =>
+        prevTables.map((table) => {
+          if (table._id === from._id) return from;
+          if (table._id === to._id) return to;
+          return table;
+        })
+      );
+
+      // Update selected and highlighted tables in UI
+      setSelectedTable(to);
+      setHighlightedTable(null);
+
+      setShowModal(false);
+    } else {
+      // Handle other modal actions here
+      setShowModal(false);
+    }
   };
+
 
   // Handle mouse down and up for long press detection
   const handleMouseDown = (table) => {
@@ -232,13 +260,13 @@ function TableManagement() {
       </div>
 
       {/* Show modal for long press action */}
-   {showModal && (
-  <BootstrapModal
-    table={longPressTable}
-    onClose={() => setShowModal(false)}
-    onAction={handleAction}
-  />
-)}
+      {showModal && (
+        <BootstrapModal
+          table={longPressTable}
+          onClose={() => setShowModal(false)}
+          onAction={handleAction}
+        />
+      )}
 
     </div>
   );

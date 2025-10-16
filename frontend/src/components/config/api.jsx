@@ -1,6 +1,6 @@
 // src/config/api.js
 import axios from "axios";
-const API_URL = "http://localhost:1020/v1/auth"; // Base URL for auth and tables
+const API_URL = "https://mksfood.in/api/v1/auth"; // Base URL for auth and tables
 
 // 🔹 Helper to get token
 const getToken = () => {
@@ -111,6 +111,29 @@ export const fetchTables = async () => {
   }
 };
 
+export const fetchAvailableTables = async () => {
+  const token = getToken();
+  if (!token) throw new Error("No token found");
+
+  const response = await fetch(`${API_URL}/table/available?status=Available`, { // You may want to filter only available tables in your backend
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || "Failed to fetch available tables");
+  }
+
+  const data = await response.json();
+  return data.data || data; // depends on your response structure
+};
+
+
+
 // 🔹 Create table
 export const createTable = async (tableData) => {
   try {
@@ -175,6 +198,35 @@ export const deleteTable = async (id) => {
     throw error;
   }
 };
+//table mobe 
+export const moveTable = async (fromTableId, toTableId) => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error("No token found");
+
+    const response = await fetch(`${API_URL}/tablemove`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ fromTableId, toTableId }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to move table");
+    }
+
+    const data = await response.json();
+    return data; // Usually returns updated table info or confirmation
+  } catch (error) {
+    console.error("❌ Error moving table:", error);
+    throw error; // Let the caller handle the error as needed
+  }
+};
+
+
 export const fetchCategories = async () => {
   try {
     const token = getToken();
@@ -492,7 +544,7 @@ export const payBill = async (billId, payment) => {
 
   const res = await fetch(`${API_URL}/bills/${billId}`, {
     method: "POST",
-    headers: {  
+    headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
@@ -506,27 +558,27 @@ export const payBill = async (billId, payment) => {
 
   return await res.json();
 };
-  export const updateBill = async (billId, payload) => {
-    if (!billId) throw new Error("Bill ID required");
+export const updateBill = async (billId, payload) => {
+  if (!billId) throw new Error("Bill ID required");
 
-    const token = getToken(); // if you're using auth
-    const res = await fetch(`${API_URL}/bills/update/${billId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-    
+  const token = getToken(); // if you're using auth
+  const res = await fetch(`${API_URL}/bills/update/${billId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || "Failed to update bill");
-    }
 
-    return res.json();
-  };
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || "Failed to update bill");
+  }
+
+  return res.json();
+};
 
 
 
