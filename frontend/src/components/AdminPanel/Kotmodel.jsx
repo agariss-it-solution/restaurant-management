@@ -1,5 +1,9 @@
 import React from "react";
+<<<<<<< HEAD
 import { fetchOrders, updateOrderItem, cancelOrderItem } from "../config/api";
+=======
+
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
 // Utility to group items by name and sum quantities
 const groupItems = (kots) => {
   const grouped = {};
@@ -53,8 +57,13 @@ function KOTModal({ kots, onClose, table }) {
                   <li key={index} className="list-group-item">
                     • <strong>{item.name}</strong> × {item.quantity}
                     {item.specialInstructions && (
+<<<<<<< HEAD
                       <div className="text-muted small mt-1">
                         <strong>Note:</strong> {item.specialInstructions}
+=======
+                      <div className="text-muted small">
+                        Note: {item.specialInstructions}
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                       </div>
                     )}
                   </li>

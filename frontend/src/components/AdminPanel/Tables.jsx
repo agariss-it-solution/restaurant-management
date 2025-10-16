@@ -174,6 +174,7 @@ function TableManagement() {
     tableElement.addEventListener("mouseup", handleMouseUp, { once: true });
   };
 
+<<<<<<< HEAD
   let pressTimer = null;
 
   const handlePressStart = (e, table) => {
@@ -187,6 +188,8 @@ function TableManagement() {
     clearTimeout(pressTimer);
   };
 
+=======
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
   return (
     <div className="container py-5">
       {/* Header */}
@@ -234,6 +237,7 @@ function TableManagement() {
               id={`table-${table._id}`} // Add an ID for long press detection
               className="col-6 col-sm-4 col-md-3"
               onClick={() => handleTableClick(table)}
+<<<<<<< HEAD
               onMouseDown={(e) => handlePressStart(e, table)}
               onTouchStart={(e) => handlePressStart(e, table)}
               onMouseUp={handlePressEnd}
@@ -248,6 +252,17 @@ function TableManagement() {
                     : table.status === "Occupied"
                       ? "bg-danger bg-opacity-10 border border-danger"
                       : "bg-white"
+=======
+              onMouseDown={() => handleMouseDown(table)} // Detect mouse down for long press
+              style={{ cursor: "pointer" }}
+            >
+              <div
+                className={`text-center p-3 rounded shadow-sm ${table.status === "Open"
+                  ? "bg-success bg-opacity-10 border border-success"
+                  : table.status === "Occupied"
+                    ? "bg-danger bg-opacity-10 border border-danger"
+                    : "bg-white"
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                   } ${isHighlighted ? "bg-warning bg-opacity-40" : ""}`}
               >
                 <div

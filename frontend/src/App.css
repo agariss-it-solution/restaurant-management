@@ -489,6 +489,7 @@ body {
   .p-7 {
     padding-bottom: 300px !important;
   }
+<<<<<<< HEAD
 }
 .noselect {
   user-select: none;
@@ -496,3 +497,6 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
 }
+=======
+}
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3

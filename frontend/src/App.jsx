@@ -78,8 +78,11 @@ function AppRoutes() {
           <Route path="orders" element={<Orders />} />
           <Route path="kitchen" element={<Kitchen />} />
           <Route path="billing" element={<Billing />} />
+<<<<<<< HEAD
           <Route path="billing/:tableId" element={<Billing />} />
 
+=======
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
           <Route path="analytics" element={<Analytics />} />
           <Route path="managemenu" element={<ManageMenuPage />} />
           <Route path="adminmenu/:tableId" element={<AdminMenuPage />} />

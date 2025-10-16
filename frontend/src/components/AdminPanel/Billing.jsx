@@ -177,6 +177,7 @@ function BillingRevenue() {
 
 
 
+<<<<<<< HEAD
 const handlePrint = async (billId, mode = "print") => {
   // Fetch restaurant settings
   let settings = {
@@ -230,6 +231,71 @@ const handlePrint = async (billId, mode = "print") => {
 
   // Construct HTML for the print view
   const contentHTML = `
+=======
+  const handlePrint = async (billId, mode = "print") => {
+    // ✅ OPEN PRINT WINDOW IMMEDIATELY to avoid Android popup blocking
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Popup blocked. Please allow popups to print the bill.");
+      return;
+    }
+
+    // 🧠 Use loading message while fetching data
+    printWindow.document.write("<p>Loading bill...</p>");
+    printWindow.document.close();
+
+    // Fetch restaurant settings
+    let settings = {
+      restaurantName: "MK's Food",
+      address: "123 Main Street, City",
+      phoneNumber: "9876543210",
+      logo: ""
+    };
+
+    try {
+      const response = await fetchSettings();
+      settings.restaurantName = response.restaurantName || settings.restaurantName;
+      settings.address = response.address || settings.address;
+      settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
+      settings.qr = response.qr || settings.qr;
+
+      if (response.logo) {
+        const logoResp = await fetch(response.logo);
+        const blob = await logoResp.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        settings.logo = await new Promise(resolve => {
+          reader.onloadend = () => resolve(reader.result);
+        });
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
+    }
+
+    const billElement = document.getElementById(`bill-${billId}`);
+    if (!billElement) return;
+
+    const clonedBill = billElement.cloneNode(true);
+    clonedBill.querySelectorAll("button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge")
+      .forEach(el => el.remove());
+
+    const billData = bills.find(b => b._id === billId);
+    const calculateBillTotal = () => {
+      if (!billData) return 0;
+      return billData.orders.reduce((sum, order) =>
+        sum + order.items.reduce((osum, item) => {
+          if (item.isCancelled || item.quantity === 0) return osum;
+          return osum + item.Price * item.quantity;
+        }, 0), 0
+      );
+    };
+
+    const totalAmount = calculateBillTotal();
+
+    // ✅ Print HTML content
+    const contentHTML = `
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
     <div style="width: 80mm; max-width: 100%; margin: auto; font-family: Arial; font-size: 12px; color: #222; border: 1px solid #ddd; padding: 15px;">
       <div style="text-align: center; margin-bottom: 10px;">
         ${settings.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 70px; height: auto; margin-bottom: 8px;">` : ""}
@@ -278,6 +344,7 @@ const handlePrint = async (billId, mode = "print") => {
     </div>
   `;
 
+<<<<<<< HEAD
   // Create a Blob URL for the HTML content
   const blob = new Blob([contentHTML], { type: 'text/html' });
   const blobUrl = URL.createObjectURL(blob);
@@ -298,6 +365,61 @@ const handlePrint = async (billId, mode = "print") => {
     }, 500); // 500ms delay helps Android render properly
   };
 };
+=======
+    // ✅ Write final HTML to the opened window
+    printWindow.document.open();
+    printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print Bill</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          @media print {
+            body {
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              font-family: Arial, sans-serif;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              padding: 4px 0;
+              border-bottom: 1px solid #ccc;
+            }
+            img {
+              max-width: 100%;
+              height: auto;
+            }
+          }
+        </style>
+      </head>
+      <body>${contentHTML}</body>
+    </html>
+  `);
+    printWindow.document.close();
+
+    // ✅ Wait a bit before printing (helps Android render)
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+
+        // Fallbacks
+        printWindow.onafterprint = () => printWindow.close();
+
+        if (printWindow.matchMedia) {
+          const mediaQueryList = printWindow.matchMedia('print');
+          mediaQueryList.addListener(mql => {
+            if (!mql.matches) printWindow.close();
+          });
+        }
+      }, 700); // 500-1000ms delay helps on Android
+    };
+  };
+>>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
 
 
   const toggleExpand = (oi) => {
