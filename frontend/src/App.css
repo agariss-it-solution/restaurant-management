@@ -1,0 +1,498 @@
+/* XXL – Hero Titles (Main headings, banners) */
+.responsive-hero {
+  font-size: clamp(2.5rem, 3vw + 1.5rem, 5rem);
+  /* ~40px mobile → ~80px desktop */
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+/* XL – Section Titles */
+.responsive-title {
+  font-size: clamp(1.8rem, 2.2vw + 1rem, 3rem);
+  /* ~28px → ~48px */
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+/* LG – Headings / Sub-sections */
+.responsive-heading {
+  font-size: clamp(1.4rem, 1.8vw + 0.5rem, 2.2rem);
+  /* ~22px → ~35px */
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+/* MD – Subtitles / Lead paragraphs */
+.responsive-subtitle {
+  font-size: clamp(1.1rem, 1.4vw + 0.3rem, 1.5rem);
+  /* ~18px → ~24px */
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+/* SM – Body Text */
+.responsive-text {
+  font-size: clamp(0.9rem, 1vw + 0.25rem, 1.125rem);
+  /* ~15px → ~18px */
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* XS – Captions, Labels, Buttons */
+.responsive-small {
+  font-size: clamp(0.75rem, 0.8vw + 0.2rem, 0.95rem);
+  /* ~12px → ~15px */
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+/* Tiny – Badges, Overlines */
+.responsive-tiny {
+  font-size: clamp(0.65rem, 0.6vw + 0.2rem, 0.8rem);
+  /* ~10px → ~13px */
+  line-height: 1.3;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (min-width: 320px) {
+
+  .container,
+  .container-lg,
+  .container-md,
+  .container-sm,
+  .container-xl,
+  .container-xxl {
+    max-width: 1800px !important;
+  }
+}
+
+/* styles.css */
+
+.card-owner,
+.card-chef,
+.card-waiter {
+  flex-grow: 1;
+}
+
+@media (max-width: 768px) {
+
+  .card-owner,
+  .card-chef,
+  .card-waiter {
+    min-height: auto !important;
+  }
+}
+
+
+#google_translate_element,
+#google_translate_element_mobile {
+  display: block !important;
+  visibility: visible !important;
+  font-size: 14px;
+}
+
+#google_translate_element_mobile .goog-te-combo {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+#google_translate_element_mobile .goog-te-combo:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+
+
+
+/* Custom translate button look */
+#google_translate_element .goog-te-gadget-simple {
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 24px;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  color: #333;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+#google_translate_element .goog-te-gadget-simple:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#google_translate_element .goog-te-gadget-simple a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Hide Google Translate banner */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-gadget-icon {
+  display: none !important;
+}
+
+
+.goog-te-banner-frame.skiptranslate,
+.VIpgJd-ZVi9od-ORHb-OEVmcd {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* AppNavbar.css */
+#google_translate_element select,
+#google_translate_element_mobile select {
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+#google_translate_element select {
+  border: none !important;
+  background: transparent !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+
+
+
+
+#google_translate_element,
+#google_translate_element_mobile {
+  display: block !important;
+  visibility: visible !important;
+  font-size: 14px;
+}
+
+
+
+/* Tablet (768px - 1024px) */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  .slanted-bg {
+    width: 400px !important;
+  }
+}
+
+/* Mobile (320px - 767px) */
+@media screen and (max-width: 767px) {
+  .slanted-bg {
+    width: 200% !important;
+  }
+}
+
+/* Mobile menu overlay */
+.mobile-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  z-index: 1050;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Hide Bootstrap collapse & toggle on mobile */
+@media (max-width: 991.98px) {
+  .navbar-expand-lg .navbar-collapse {
+    display: none !important;
+  }
+
+  .navbar-expand-lg .navbar-toggler {
+    display: none !important;
+  }
+
+}
+
+
+#google_translate_element_mobile .goog-te-combo {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+#google_translate_element_mobile .goog-te-combo:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+
+
+
+/* Custom translate button look */
+#google_translate_element .goog-te-gadget-simple {
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 24px;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  color: #333;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+#google_translate_element .goog-te-gadget-simple:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#google_translate_element .goog-te-gadget-simple a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Hide Google Translate banner */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-gadget-icon {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+
+.goog-te-banner-frame.skiptranslate,
+.VIpgJd-ZVi9od-ORHb-OEVmcd {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Wrapper for both desktop and mobile */
+.translate-logout-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* AppNavbar.css */
+
+.mobile-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background: white;
+
+  overflow-y: auto;
+}
+
+/* Optional tweaks */
+#google_translate_container select {
+  padding: 4px;
+  font-size: 14px;
+}
+
+/* ---------------- Desktop (>= 992px) ---------------- */
+@media (min-width: 992px) {
+  .order-summary-wrapper {
+    position: sticky;
+    top: 80px;
+    /* adjust based on navbar height */
+    height: 500px;
+    /* fixed height in px */
+    overflow-y: auto;
+  }
+}
+
+/* ---------------- Mobile/Tablet (< 992px) ---------------- */
+@media (max-width: 991.98px) {
+
+  /* Fixed at bottom on mobile */
+  .order-summary-wrapper.show-on-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    z-index: 1050;
+    height: 375px;
+    /* fixed height in px */
+    display: flex;
+    flex-direction: column;
+    /* allows content + footer layout */
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Hide by default if empty */
+  .order-summary-wrapper.hide-on-mobile {
+    display: none !important;
+  }
+
+  /* Scrollable list inside */
+  .order-summary-content {
+    flex: 1;
+    /* take available vertical space */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* smooth scroll on iOS */
+    padding-bottom: 10px;
+    /* space before footer */
+  }
+
+  /* Footer with button always visible */
+  .order-summary-footer {
+    flex-shrink: 0;
+    /* prevent footer from collapsing */
+    background: #fff;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    position: sticky;
+    bottom: 0;
+  }
+
+  /* Search & categories spacing tweaks */
+  .form-control {
+    font-size: 1rem;
+    padding: 10px;
+  }
+}
+
+
+/* ---------------- Desktop (>= 992px) ---------------- */
+@media (min-width: 992px) {
+  .order-summary-wrapper {
+    position: sticky;
+    top: 80px;
+    /* adjust based on navbar height */
+    height: 500px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+  }
+}
+
+/* ---------------- Mobile/Tablet (< 992px) ---------------- */
+@media (max-width: 991.98px) {
+  .order-summary-wrapper {
+    position: relative;
+    /* ✅ Fix: remove fixed positioning */
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 1rem;
+    overflow-y: visible;
+    /* ✅ let page scroll naturally */
+  }
+
+  .order-summary-content {
+    max-height: none;
+    /* allow natural growth */
+    overflow-y: visible;
+  }
+
+  .order-summary-footer {
+    position: relative;
+    background: #fff;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .show-on-mobile {
+    display: block !important;
+  }
+}
+
+
+@media (max-width: 991.98px) {
+
+  /* Fixed at bottom on mobile */
+  .order-summary-wrapper.show-on-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    z-index: 1050;
+    height: 375px;
+    /* fixed height in px */
+    display: flex;
+    flex-direction: column;
+    /* allows content + footer layout */
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Hide by default if empty */
+  .order-summary-wrapper.hide-on-mobile {
+    display: none !important;
+  }
+
+  /* Scrollable list inside */
+  .order-summary-content {
+    flex: 1;
+    /* take available vertical space */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* smooth scroll on iOS */
+    padding-bottom: 10px;
+    /* space before footer */
+  }
+
+  /* Footer with button always visible */
+  .order-summary-footer {
+    flex-shrink: 0;
+    /* prevent footer from collapsing */
+    background: #fff;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    position: sticky;
+    bottom: 0;
+  }
+
+  /* Search & categories spacing tweaks */
+  .form-control {
+    font-size: 1rem;
+    padding: 10px;
+  }
+}
+
+@media  screen and (min-width:350px) and (max-width:768px) {
+  .p-7 {
+    padding-bottom: 300px !important;
+  }
+}
+.noselect {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

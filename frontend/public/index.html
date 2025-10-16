@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="Web site created using create-react-app" />
+  <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+  <!-- External CSS -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <title>Mk's Food</title>
+
+  <!-- Google Translate Cleanup / hiding initial body until ready -->
+  <style>
+    body {
+      visibility:visible; /* hide until translate loads */
+      margin: 0;
+      padding: 0;
+    }
+    /* Clean up Google Translate UI ugliness */
+    .VIpgJd-yAWNEb, .VIpgJd-yAWNEb-hvhgNd, .VIpgJd-yAWNEb-VIpgJd-fmcmS-sn54q,
+    .VIpgJd-suEOdc .VIpgJd-yAWNEb-L7lbkb .skiptranslate {
+      background-color: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    #goog-gt-tt, .goog-tooltip, .goog-tooltip:hover, .goog-te-balloon-frame,
+    .goog-te-banner-frame, .goog-te-banner-frame.skiptranslate,
+    iframe.goog-te-banner-frame {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    .goog-te-gadget {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .goog-te-menu-value span, .goog-te-menu-value img {
+      display: none !important;
+    }
+    .goog-te-menu-frame {
+      box-shadow: none !important;
+      border: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>You need to enable JavaScript to run this app.</noscript>
+  <div id="root"></div>
+
+  <!-- Google Translate initialization script -->
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,hi,gu',
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+        autoDisplay: false
+      }, 'google_translate_element');
+      // After a little delay, make body visible
+      setTimeout(() => {
+        document.body.style.visibility = "visible";
+      }, 500);
+    }
+  </script>
+
+  <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+</body>
+
+</html>

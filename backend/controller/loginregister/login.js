@@ -1,0 +1,270 @@
+const Response = require("../../helper/errHandler");
+const User = require("../../models/user");
+const bcrypt = require('bcrypt')
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET;
+const sendEmail = require("../utils/emailUtils");
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+
+        if (!email || !password) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Email and password are required",
+            });
+        }
+
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return Response.Error({
+                res,
+                status: 401,
+                message: "Invalid email or password",
+            });
+        }
+
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return Response.Error({
+                res,
+                status: 401,
+                message: "Invalid email or password",
+            });
+        }
+
+
+        const expiresIn = "30d";
+        const token = jwt.sign(
+            { id: user._id, email: user.email, role: user.role },
+            JWT_SECRET,
+            //   { expiresIn }
+        );
+
+
+        const decoded = jwt.decode(token);
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Login successful",
+            data: {
+                token,
+                email: user.email,
+                role: user.role,
+                expiresAt: decoded.exp * 1000, // send as timestamp in ms
+            },
+        });
+    } catch (error) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+    }
+};
+
+const logout = async (req, res) => {
+    try {
+
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Logout successful",
+            data: null,
+        });
+    } catch (error) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+    }
+};
+
+const sendResetPasswordEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Email is required",
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "User not found",
+            });
+        }
+
+
+        const token = jwt.sign(
+            { email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "5m" }
+        );
+
+        // Build reset link
+        const resetLink = `${process.env.FRONTEND_URL}/?token=${token}&email=${email}`;
+
+
+        const emailBody = `
+            <html>
+                <head>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            color: #333;
+                            line-height: 1.6;
+                            margin: 0;
+                            padding: 20px;
+                            background-color: #f4f4f4;
+                        }
+                        .container {
+                            max-width: 600px;
+                            margin: 0 auto;
+                            background-color: #fff;
+                            padding: 20px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                        }
+                        h1 {
+                            color: #333;
+                        }
+                        p {
+                            font-size: 16px;
+                        }
+                        a {
+                            color: #3498db;
+                            text-decoration: none;
+                            font-weight: bold;
+                        }
+                        .footer {
+                            margin-top: 20px;
+                            font-size: 12px;
+                            color: #aaa;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Password Reset Request</h1>
+                        <p>Hello,</p>
+                        <p>We received a request to reset the password for your account at <strong>${process.env.WEBSITE_NAME || 'Our Website'}</strong>.</p>
+                        <p>Please click the link below to reset your password. This link will expire in 5 minutes:</p>
+                        <p><a href="${resetLink}">${resetLink}</a></p>
+                        <p>If you did not request a password reset, please ignore this email or contact support if you have any concerns.</p>
+                        <div class="footer">
+                            <p>&copy; ${new Date().getFullYear()} ${process.env.WEBSITE_NAME || 'Our Website'}. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `;
+
+
+        const data = await sendEmail({
+            to: process.env.EMAIL_USER,
+            subject: "Reset Your Password",
+            html: emailBody,
+        });
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Reset password email sent successfully",
+            data: { resetLink, data },
+        });
+
+    } catch (error) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+
+    }
+};
+
+const resetPassword = async (req, res) => {
+    try {
+        const { email, token, newPassword } = req.body;
+
+        if (!email || !newPassword || !token) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Email, new password, and token are required",
+            });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return Response.Error({
+                res,
+                status: 404,
+                message: "User not found",
+            });
+        }
+
+        // Verify the token
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (decoded.email !== email) {
+                return Response.Error({
+                    res,
+                    status: 400,
+                    message: "Invalid token",
+                });
+            }
+        } catch (error) {
+            return Response.Error({
+                res,
+                status: 400,
+                message: "Invalid or expired token",
+                error: error.message,
+            });
+        }
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+
+        // Clear reset token and expiry
+        user.resetToken = undefined;
+        user.resetTokenExpiry = undefined;
+
+        await user.save();
+        return Response.Success({
+            res,
+            status: 200,
+            message: "Password reset successfully",
+            data: null,
+        });
+
+    } catch (error) {
+        return Response.Error({
+            res,
+            status: 500,
+            message: "Internal Server Error",
+            error: error.message,
+        });
+    }
+};
+
+
+
+module.exports = { login, logout, sendResetPasswordEmail, resetPassword };  
