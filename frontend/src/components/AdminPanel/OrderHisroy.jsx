@@ -73,6 +73,7 @@ const OrderCard = () => {
   };
 
   // ---------------- EXPORT EXCEL ----------------
+
   const exportExcel = () => {
     const mergedOrders = mergeOrdersById(getFilteredOrders());
     if (!mergedOrders.length) return alert("No orders to export!");
@@ -80,18 +81,34 @@ const OrderCard = () => {
     const rows = [];
 
     mergedOrders.forEach((order) => {
+      const tableOrCustomer = order.tableNumber
+        ? `Table ${order.tableNumber}`
+        : order.customerName || "-";
+
+      // Determine payment info
+      let paymentInfo = "";
+      if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
+        const parts = [];
+        if (order.paymentAmounts.cash > 0) parts.push(`Cash: ₹${order.paymentAmounts.cash.toFixed(2)}`);
+        if (order.paymentAmounts.online > 0) parts.push(`Online: ₹${order.paymentAmounts.online.toFixed(2)}`);
+        paymentInfo = parts.join(" | ");
+      } else if (order.paymentMethod?.toLowerCase() === "cash") {
+        paymentInfo = `Cash: ₹${order.totalAmount?.toFixed(2) || order.Price?.toFixed(2)}`;
+      } else if (order.paymentMethod?.toLowerCase() === "online") {
+        paymentInfo = `Online: ₹${order.totalAmount?.toFixed(2) || order.Price?.toFixed(2)}`;
+      }
+
       // Header per order
       rows.push({
         "Order ID": `#${order.orderId}`,
-        Table: `Table ${order.tableNumber}`,
+        Table: tableOrCustomer,
         Item: "",
         Quantity: "",
         Price: "",
         "Food Type": "",
         Status: order.status,
-        "Ordered Time": order.createdAt
-          ? new Date(order.createdAt).toLocaleString("en-IN")
-          : "",
+        "Ordered Time": order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : "",
+        Payment: paymentInfo,
         Total: "",
       });
 
@@ -103,9 +120,10 @@ const OrderCard = () => {
           Item: item.name || item.menuItem,
           Quantity: item.quantity,
           Price: (Number(item.Price ?? item.price) || 0).toFixed(2),
-          "Food Type": item.foodType,
+          "Food Type": item.foodType || "",
           Status: "",
           "Ordered Time": "",
+          Payment: "",
           Total: ((Number(item.Price ?? item.price) || 0) * item.quantity).toFixed(2),
         });
       });
@@ -120,16 +138,16 @@ const OrderCard = () => {
         "Food Type": "",
         Status: "",
         "Ordered Time": "",
+        Payment: "",
         Total: order.Price.toFixed(2),
       });
 
-      rows.push({}); // spacing line
+      rows.push({}); // spacing
     });
 
     const grandTotal = mergedOrders.reduce((sum, o) => sum + o.Price, 0);
     rows.push({ Item: "🧾 GRAND TOTAL", Total: grandTotal.toFixed(2) });
 
-    // Generate Excel
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
 
@@ -147,6 +165,7 @@ const OrderCard = () => {
     XLSX.writeFile(workbook, `Orders_Report_${new Date().toLocaleDateString("en-GB")}.xlsx`);
   };
 
+
   const exportPDF = () => {
     const mergedOrders = mergeOrdersById(getFilteredOrders());
     if (!mergedOrders.length) return alert("No orders to export!");
@@ -155,100 +174,71 @@ const OrderCard = () => {
     let currentY = 25;
     let grandTotal = 0;
 
-    // ---------------- HEADER ----------------
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("Restaurant Daily Orders Report", 105, 15, { align: "center" });
-
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    // doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 14, 22);
-    // doc.line(14, 24, 196, 24);
 
-    // ---------------- ORDERS LOOP ----------------
-    mergedOrders.forEach((order, index) => {
+    mergedOrders.forEach((order, index) => {  
+      const tableOrCustomer = order.tableNumber
+        ? `Table ${order.tableNumber}`
+        : order.customerName || "-";
+
       const tableData = (order.items || []).map((item, i) => [
         i + 1,
         item.name || item.menuItem || "-",
         item.quantity || 0,
-        // Number(item.Price ?? item.price || 0).toFixed(2),
-        Number((item.Price ?? item.price) || 0).toFixed(2),
+        (Number(item.Price ?? item.price) || 0).toFixed(2),
         ((Number(item.Price ?? item.price) || 0) * (item.quantity || 0)).toFixed(2),
       ]);
 
-      const billTotal =
-        order.Price ??
-        order.items?.reduce(
-          (sum, item) => sum + (Number(item.Price ?? item.price) || 0) * (item.quantity || 0),
-          0
-        ) ?? 0;
-
+      const billTotal = order.Price ?? tableData.reduce((sum, row) => sum + Number(row[4]), 0);
       grandTotal += billTotal;
 
-      // Add Bill Total as the last row
-      tableData.push(["", "", "", "Bill Total", billTotal.toFixed(2)]);
-
-      // Section Header
+      // Section header
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(40, 40, 40);
       doc.text(
-        `Table: ${order.tableNumber || "-"}    |    Order ID: ${order.orderId || "-"}    |    Status: ${order.status || "-"}`,
+        `${tableOrCustomer} | Order ID: ${order.orderId} | Status: ${order.status}`,
         14,
         currentY
       );
-
       currentY += 5;
 
-      // Order Table
+      // Items table
       autoTable(doc, {
-        head: [["#", "Item Name", "Qty", "Price ", "Total"]],
-        body: tableData,
+        head: [["#", "Item Name", "Qty", "Price", "Total"]],
+        body: [...tableData, ["", "", "", "Bill Total", billTotal.toFixed(2)]],
         startY: currentY,
         theme: "grid",
-        headStyles: {
-          fillColor: [52, 73, 94],
-          textColor: 255,
-          fontStyle: "bold",
-          halign: "center",
-        },
-        bodyStyles: {
-          textColor: [33, 33, 33],
-          fontSize: 10,
-        },
-        styles: { cellPadding: 3, valign: "middle" },
-        columnStyles: {
-          0: { cellWidth: 10, halign: "center" },
-          1: { cellWidth: 70 },
-          2: { cellWidth: 20, halign: "center" },
-          3: { cellWidth: 25, halign: "right" },
-          4: { cellWidth: 25, halign: "right" },
-        },
+        headStyles: { fillColor: [52, 73, 94], textColor: 255, fontStyle: "bold" },
+        bodyStyles: { fontSize: 10, textColor: [33, 33, 33] },
+        columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 70 }, 2: { cellWidth: 20 }, 3: { cellWidth: 25 }, 4: { cellWidth: 25, halign: "right" } },
       });
 
       currentY = doc.lastAutoTable.finalY + 6;
-
-      // Divider between orders
       doc.setDrawColor(200);
       doc.line(14, currentY, 196, currentY);
       currentY += 10;
 
-      // Page break
       if (currentY > 260 && index < mergedOrders.length - 1) {
         doc.addPage();
         currentY = 25;
       }
     });
 
-    doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
     doc.setTextColor(0, 0, 150);
-    doc.text(`Grand Total:  ${grandTotal.toFixed(2)}`, 14, currentY); // start from left
-
+    doc.text(`Grand Total: ₹${grandTotal.toFixed(2)}`, 14, currentY);
     doc.line(14, currentY + 2, 196, currentY + 2);
 
     doc.save(`Orders_Report_${new Date().toLocaleDateString("en-GB")}.pdf`);
   };
+
+
   const handleSaveDiscount = async (bill) => {
     try {
       const originalTotal = calculateOrderTotal(bill);
