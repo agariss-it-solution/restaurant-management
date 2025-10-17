@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from "react";
-<<<<<<< HEAD
-import { useNavigate } from "react-router-dom";  // <-- Import useNavigate
-=======
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
+import { useNavigate } from "react-router-dom";
+
 import {
   moveTable,
   fetchAvailableTables,
   fetchOrders,
 } from "../config/api";
-<<<<<<< HEAD
-import KOTModal from "./Kotmodel";
-
-function BootstrapModal({ table, onClose, onAction }) {
-  const navigate = useNavigate();  // <-- Initialize navigate
-
-=======
 import KOTModal from "./Kotmodel"; // Ensure correct path
 function BootstrapModal({ table, onClose, onAction }) {
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
+  const navigate = useNavigate();
   const [moveMode, setMoveMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -25,23 +16,14 @@ function BootstrapModal({ table, onClose, onAction }) {
   const [fetchingTables, setFetchingTables] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [kots, setKots] = useState([]);
-<<<<<<< HEAD
-  const [kotError, setKotError] = useState(null);
-  const [showKOTModal, setShowKOTModal] = useState(false);
-  const [showMainModal, setShowMainModal] = useState(true);
-=======
   const [showKOTModal, setShowKOTModal] = useState(false);
   const [kotError, setKotError] = useState(null);
   const [showMainModal, setShowMainModal] = useState(true); // NEW
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
 
   const actions = [
     { key: "viewKots", label: "View KOT(s)" },
     { key: "moveTable", label: "Move Table" },
-<<<<<<< HEAD
-=======
-    { key: "printBill", label: "Print Bill" },
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
+    // { key: "printBill", label: "Print Bill" },
     { key: "printBillAndTakePayment", label: "Print Bill & Take Payment" },
   ];
 
@@ -88,50 +70,34 @@ function BootstrapModal({ table, onClose, onAction }) {
     }
   };
 
-<<<<<<< HEAD
-  // New handler for Print Bill & Take Payment button
-const handlePrintBillAndTakePayment = () => {
-  if (!table || (!table._id && !table.id)) {
-    console.error("Table ID is missing.");
-    return;
-  }
-  const tableId = table._id || table.id;
-  onClose();
-  navigate(`/admin/billing/${tableId}`);
-};
-
-
-  return (
-    <>
-=======
   return (
     <>
       {/* Main modal (conditionally rendered) */}
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
       {showMainModal && (
         <div
           className="modal fade show d-block"
           tabIndex="-1"
           role="dialog"
           aria-modal="true"
-<<<<<<< HEAD
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            overflowY: "auto",
-          }}
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
         >
           <div
             className="modal-dialog modal-dialog-centered"
             role="document"
+            style={{
+              maxWidth: "500px",
+              width: "90%",
+              margin: "auto",
+            }}
           >
-            <div className="modal-content">
-              {/* Modal Header */}
-=======
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}
-        >
-          <div className="modal-dialog modal-dialog-centered modal-fullscreen-sm-down" role="document">
-            <div className="modal-content">
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
+            <div
+              className="modal-content"
+              style={{
+                borderRadius: "10px",
+                overflowY: "auto",
+                maxHeight: "90vh",
+              }}
+            >
               <div className="modal-header">
                 <h5 className="modal-title">Table No: {table.number}</h5>
                 <button
@@ -142,34 +108,16 @@ const handlePrintBillAndTakePayment = () => {
                 ></button>
               </div>
 
-<<<<<<< HEAD
-              {/* Modal Body */}
-              <div
-                className="modal-body d-grid gap-2"
-                style={{
-                  maxHeight: "70vh",
-                  overflowY: "auto",
-                }}
-              >
-=======
               <div className="modal-body d-grid gap-2">
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                 {error && (
                   <div className="alert alert-danger" role="alert">
                     {error}
                   </div>
                 )}
 
-<<<<<<< HEAD
-                {/* Move Table Mode */}
-                {moveMode ? (
-                  <>
-                    <h6 className="fw-bold">Select a table to move to:</h6>
-=======
                 {moveMode ? (
                   <>
                     <h6>Select a table to move to:</h6>
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                     {fetchingTables ? (
                       <div>Loading tables...</div>
                     ) : fetchError ? (
@@ -190,11 +138,7 @@ const handlePrintBillAndTakePayment = () => {
                     )}
 
                     <button
-<<<<<<< HEAD
-                      className="btn btn-secondary mt-2"
-=======
                       className="btn btn-secondary"
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                       onClick={() => setMoveMode(false)}
                       disabled={loading}
                     >
@@ -202,10 +146,6 @@ const handlePrintBillAndTakePayment = () => {
                     </button>
                   </>
                 ) : (
-<<<<<<< HEAD
-                  // Normal Action Buttons
-=======
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                   actions.map((action) => (
                     <button
                       key={action.key}
@@ -216,16 +156,14 @@ const handlePrintBillAndTakePayment = () => {
                           setError(null);
                         } else if (action.key === "viewKots") {
                           handleViewKots();
-<<<<<<< HEAD
                         } else if (action.key === "printBillAndTakePayment") {
-                          handlePrintBillAndTakePayment(); // Redirect here
-                        } else {
+                          navigate(`/admin/billing`);
+                        } 
+                        // else if (action.key === "printBillAndTakePayment") {
+                        //   navigate(`/takeaway/${table._id}`);
+                        // }
+                         else {
                           onAction(action.key);
-                          onClose();
-=======
-                        } else {
-                          onAction(action.key);
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                         }
                       }}
                       disabled={loading}
@@ -235,10 +173,6 @@ const handlePrintBillAndTakePayment = () => {
                   ))
                 )}
 
-<<<<<<< HEAD
-                {/* KOT Error */}
-=======
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                 {kotError && (
                   <div className="alert alert-danger mt-2">{kotError}</div>
                 )}

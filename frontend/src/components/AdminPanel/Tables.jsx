@@ -173,23 +173,26 @@ function TableManagement() {
     const tableElement = document.getElementById(`table-${table._id}`);
     tableElement.addEventListener("mouseup", handleMouseUp, { once: true });
   };
-
-<<<<<<< HEAD
-  let pressTimer = null;
-
-  const handlePressStart = (e, table) => {
-    e.preventDefault();
-    pressTimer = setTimeout(() => {
+  // Long press detection (works on mobile + desktop)
+  const handlePressStart = (table) => {
+    const timer = setTimeout(() => {
       handleLongPress(table);
-    }, 800); // 800ms for long press
+    }, 800); // 800ms long press
+
+    // Store the timer in the table element
+    const el = document.getElementById(`table-${table._id}`);
+    el.dataset.timer = timer;
   };
 
-  const handlePressEnd = () => {
-    clearTimeout(pressTimer);
+  const handlePressEnd = (table) => {
+    const el = document.getElementById(`table-${table._id}`);
+    const timer = el?.dataset.timer;
+    if (timer) {
+      clearTimeout(timer);
+      delete el.dataset.timer;
+    }
   };
 
-=======
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
   return (
     <div className="container py-5">
       {/* Header */}
@@ -237,24 +240,14 @@ function TableManagement() {
               id={`table-${table._id}`} // Add an ID for long press detection
               className="col-6 col-sm-4 col-md-3"
               onClick={() => handleTableClick(table)}
-<<<<<<< HEAD
-              onMouseDown={(e) => handlePressStart(e, table)}
-              onTouchStart={(e) => handlePressStart(e, table)}
-              onMouseUp={handlePressEnd}
-              onTouchEnd={handlePressEnd}
-              onMouseLeave={handlePressEnd}
-
-              style={{ cursor: "pointer" }}
-            >
-              <div
-                className={`text-center p-3 rounded shadow-sm noselect ${table.status === "Open"
-                    ? "bg-success bg-opacity-10 border border-success"
-                    : table.status === "Occupied"
-                      ? "bg-danger bg-opacity-10 border border-danger"
-                      : "bg-white"
-=======
-              onMouseDown={() => handleMouseDown(table)} // Detect mouse down for long press
-              style={{ cursor: "pointer" }}
+              onMouseDown={() => handleMouseDown(table)}
+              onTouchStart={() => handlePressStart(table)}   // 👈 Mobile support
+              onTouchEnd={() => handlePressEnd(table)}
+              style={{
+                cursor: "pointer",
+                userSelect: "none", // 🚫 Prevent text selection
+                WebkitUserSelect: "none", // Safari support
+              }}
             >
               <div
                 className={`text-center p-3 rounded shadow-sm ${table.status === "Open"
@@ -262,7 +255,6 @@ function TableManagement() {
                   : table.status === "Occupied"
                     ? "bg-danger bg-opacity-10 border border-danger"
                     : "bg-white"
->>>>>>> e8eb220922cf96643536322784f0f5391294d0e3
                   } ${isHighlighted ? "bg-warning bg-opacity-40" : ""}`}
               >
                 <div

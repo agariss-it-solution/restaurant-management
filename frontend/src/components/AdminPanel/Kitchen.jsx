@@ -102,16 +102,35 @@ const OrderCard = () => {
             return bTime - aTime;
           })
           .map((order, idx) => {
-            const items = order.items || [];
+    
+  const items = (order.items || []).filter(item => {
+  const category = (item.category || "").trim().toLowerCase();
+  const name = (item.name || "").trim().toLowerCase();
+
+  const hiddenTerms = [
+    "cold drink",
+    "cold drinks",
+    "drinks",
+    "beverage",
+    "beverages",
+    "bon",
+    "sprite",
+    "water bottle"
+  ];
+
+  return !hiddenTerms.some(term => category === term || name === term);
+});
+
+
 
             return (
               <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
                 <div
                   className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${order.status?.toLowerCase() === "ready"
-                      ? "bg-success bg-opacity-10"
-                      : order.status?.toLowerCase() === "completed"
-                        ? "bg-primary bg-opacity-10"
-                        : "bg-white"
+                    ? "bg-success bg-opacity-10"
+                    : order.status?.toLowerCase() === "completed"
+                      ? "bg-primary bg-opacity-10"
+                      : "bg-white"
                     }`}
                 >
                   <Badge
