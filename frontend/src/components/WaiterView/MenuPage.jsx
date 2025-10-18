@@ -295,7 +295,6 @@ function MenuPage() {
                 position: "fixed",
                 top: "20px",
                 right: "20px",
-                width: "430px",
                 maxHeight: "80vh",
                 backgroundColor: "white",
                 overflow: "hidden",

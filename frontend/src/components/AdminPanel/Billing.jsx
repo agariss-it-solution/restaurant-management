@@ -177,24 +177,12 @@ function BillingRevenue() {
 
 
 
-  const handlePrint = async (billId, mode = "print") => {
-    // ✅ OPEN PRINT WINDOW IMMEDIATELY to avoid Android popup blocking
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Popup blocked. Please allow popups to print the bill.");
-      return;
-    }
-
-    // 🧠 Use loading message while fetching data
-    printWindow.document.write("<p>Loading bill...</p>");
-    printWindow.document.close();
-
-    // Fetch restaurant settings
+  const handlePrint = async (billId) => {
     let settings = {
       restaurantName: "MK's Food",
       address: "123 Main Street, City",
       phoneNumber: "9876543210",
-      logo: ""
+      logo: "",
     };
 
     try {
@@ -202,7 +190,6 @@ function BillingRevenue() {
       settings.restaurantName = response.restaurantName || settings.restaurantName;
       settings.address = response.address || settings.address;
       settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
-      settings.qr = response.qr || settings.qr;
 
       if (response.logo) {
         const logoResp = await fetch(response.logo);
@@ -213,21 +200,14 @@ function BillingRevenue() {
           reader.onloadend = () => resolve(reader.result);
         });
       }
-
     } catch (err) {
       console.error("Failed to fetch settings:", err);
     }
 
-    const billElement = document.getElementById(`bill-${billId}`);
-    if (!billElement) return;
-
-    const clonedBill = billElement.cloneNode(true);
-    clonedBill.querySelectorAll("button, .no-print, .print-hide, .order-id, .status, .total-row, small, badge")
-      .forEach(el => el.remove());
-
     const billData = bills.find(b => b._id === billId);
+    if (!billData) return;
+
     const calculateBillTotal = () => {
-      if (!billData) return 0;
       return billData.orders.reduce((sum, order) =>
         sum + order.items.reduce((osum, item) => {
           if (item.isCancelled || item.quantity === 0) return osum;
@@ -238,79 +218,108 @@ function BillingRevenue() {
 
     const totalAmount = calculateBillTotal();
 
-    // ✅ Print HTML content
     const contentHTML = `
-    <div style="width: 80mm; max-width: 100%; margin: auto; font-family: Arial; font-size: 12px; color: #222; border: 1px solid #ddd; padding: 15px;">
+    <div style="width: 100%; font-family: Arial, sans-serif; font-size: 12px; color: #222;">
       <div style="text-align: center; margin-bottom: 10px;">
-        ${settings.logo ? `<img src="${settings.logo}" alt="Logo" style="width: 70px; height: auto; margin-bottom: 8px;">` : ""}
-        <h1 style="margin: 0; font-size: 18px;">${settings.restaurantName}</h1>
-        <p style="margin: 0; font-size: 10px; color: #555;">${settings.address}</p>
-        <p style="margin: 0; font-size: 10px; color: #555;">Phone: ${settings.phoneNumber}</p>
+        ${settings.logo ? `<img src="${settings.logo}" style="width: 80px; height: auto; margin-bottom: 10px;">` : ""}
+        <h2 style="margin: 0;">${settings.restaurantName}</h2>
+        <p style="margin: 0;">${settings.address}</p>
+        <p style="margin: 0;">Phone: ${settings.phoneNumber}</p>
       </div>
-      <hr style="border-top: 1px dashed #333;">
+      <hr />
 
-      <div style="margin-bottom: 10px;">
-        <strong>Table: </strong> ${billData?.table?.number || "-"}<br>
-        <strong>Date: </strong> ${new Date(billData?.createdAt).toLocaleDateString()}<br>
-        <strong>Time: </strong> ${new Date(billData?.createdAt).toLocaleTimeString()}
-      </div>
+      <p><strong>Table:</strong> ${billData?.table?.number || "-"}<br>
+      <strong>Date:</strong> ${new Date(billData?.createdAt).toLocaleDateString()}<br>
+      <strong>Time:</strong> ${new Date(billData?.createdAt).toLocaleTimeString()}</p>
 
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
-          <tr style="border-bottom: 1px solid #ccc;">
-            <th style="text-align: left;">Item</th>
-            <th style="text-align: center;">Qty</th>
-            <th style="text-align: right;">Price</th>
+          <tr>
+            <th align="left">Item</th>
+            <th align="center">Qty</th>
+            <th align="right">Price</th>
           </tr>
         </thead>
         <tbody>
-          ${billData?.orders.map(order => order.items.filter(item => !item.isCancelled && item.quantity > 0).map(item => `
-            <tr>
-              <td>${item.name}</td>
-              <td style="text-align: center;">${item.quantity}</td>
-              <td style="text-align: right;">₹${(item.Price * item.quantity).toFixed(2)}</td>
-            </tr>
-          `).join('')).join('')}
+          ${billData.orders.map(order => order.items
+      .filter(item => !item.isCancelled && item.quantity > 0)
+      .map(item => `
+                <tr>
+                  <td>${item.name}</td>
+                  <td align="center">${item.quantity}</td>
+                  <td align="right">₹${(item.Price * item.quantity).toFixed(2)}</td>
+                </tr>
+              `).join('')
+    ).join('')
+      }
         </tbody>
       </table>
 
-      <hr style="border-top: 1px solid #333;">
-      <div style="display: flex; justify-content: space-between; font-weight: bold;">
-        <span>Total</span>
-        <span>₹${totalAmount.toFixed(2)}</span>
-      </div>
+      <hr />
+      <p style="text-align: right;"><strong>Total: ₹${totalAmount.toFixed(2)}</strong></p>
 
-      <hr style="border-top: 1px dashed #333;">
-      <div style="text-align: center; font-size: 11px; color: #555;">
-        Thank you for dining with us!<br>
-        Please visit again.
+      <div style="text-align: center; margin-top: 40px;">
+        Thank you! Please visit again.
       </div>
     </div>
   `;
 
-    // ✅ Write final HTML to the opened window
-    printWindow.document.open();
-    printWindow.document.write(`
+    let iframe = document.getElementById("print-frame");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "print-frame";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
     <html>
       <head>
         <title>Print Bill</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
+          * {
+            box-sizing: border-box;
+          }
+
+          @page {
+            size: A4 portrait;
+            margin: 20mm;
+          }
+
           @media print {
-            body {
+            html, body {
+              width: 100%;
+              height: 100%;
               margin: 0;
               padding: 0;
-              -webkit-print-color-adjust: exact;
+              background: white;
               font-family: Arial, sans-serif;
+              font-size: 12px;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
+
+            .receipt-container {
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              min-height: 100vh;
+              width: 100%;
+            }
+
             table {
               width: 100%;
               border-collapse: collapse;
             }
+
             th, td {
-              padding: 4px 0;
+              padding: 6px 0;
               border-bottom: 1px solid #ccc;
             }
+
             img {
               max-width: 100%;
               height: auto;
@@ -318,29 +327,16 @@ function BillingRevenue() {
           }
         </style>
       </head>
-      <body>${contentHTML}</body>
+      <body onload="window.focus(); window.print(); window.onafterprint = () => window.close();">
+        <div class="receipt-container">
+          ${contentHTML}
+        </div>
+      </body>
     </html>
   `);
-    printWindow.document.close();
-
-    // ✅ Wait a bit before printing (helps Android render)
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-
-        // Fallbacks
-        printWindow.onafterprint = () => printWindow.close();
-
-        if (printWindow.matchMedia) {
-          const mediaQueryList = printWindow.matchMedia('print');
-          mediaQueryList.addListener(mql => {
-            if (!mql.matches) printWindow.close();
-          });
-        }
-      }, 700); // 500-1000ms delay helps on Android
-    };
+    doc.close();
   };
+
 
 
   const toggleExpand = (oi) => {

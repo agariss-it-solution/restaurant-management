@@ -8,7 +8,6 @@ const OrderCard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-
   useEffect(() => {
     let isMounted = true;
 
@@ -32,12 +31,9 @@ const OrderCard = () => {
       }
     };
 
-
     loadOrders();
 
-
     const interval = setInterval(loadOrders, 3000);
-
 
     return () => {
       isMounted = false;
@@ -60,8 +56,6 @@ const OrderCard = () => {
     }
   };
 
-
-
   if (loading) return <div className="text-center">Loading...</div>;
   if (error) return <div className="text-danger">{error}</div>;
   if (orders.length === 0)
@@ -75,7 +69,7 @@ const OrderCard = () => {
     );
 
   return (
-    <div className="container mt-4 p-lg-4  ">
+    <div className="container mt-4 p-lg-4">
       <h4 className="mb-3 text-capitalize">Orders</h4>
       <Row className="g-3 pb-4">
         {[...orders]
@@ -83,54 +77,54 @@ const OrderCard = () => {
             const aStatus = (a.status || "").toLowerCase();
             const bStatus = (b.status || "").toLowerCase();
 
-            // Define sorting order: Pending/New → Ready → Completed
             const orderPriority = (status) => {
               if (status === "ready") return 2;
               if (status === "completed") return 3;
-              return 1; // Default = Pending/New
+              return 1; // Pending/New default
             };
 
-            // First, sort by status (Pending first, then Ready, then Completed)
             const priorityDiff = orderPriority(aStatus) - orderPriority(bStatus);
             if (priorityDiff !== 0) return priorityDiff;
 
-            // Then sort by creation time (latest FIRST)
             const aTime = new Date(a.createdAt || 0).getTime();
             const bTime = new Date(b.createdAt || 0).getTime();
 
-            // 🔥 Reverse order so NEWEST orders appear first
-            return bTime - aTime;
+            return bTime - aTime; // newest first
           })
           .map((order, idx) => {
-    
-  const items = (order.items || []).filter(item => {
-  const category = (item.category || "").trim().toLowerCase();
-  const name = (item.name || "").trim().toLowerCase();
+            const hiddenTerms = [
+              "cold drink",
+              "cold drinks",
+              "drinks",
+              "beverage",
+              "beverages",
+              "bon",
+              "sprite",
+              "water bottle",
+              "mango",
+              "pepsi"
+            ];
 
-  const hiddenTerms = [
-    "cold drink",
-    "cold drinks",
-    "drinks",
-    "beverage",
-    "beverages",
-    "bon",
-    "sprite",
-    "water bottle"
-  ];
+            // Filter items by excluding hidden terms in category or name
+            const filteredItems = (order.items || []).filter((item) => {
+              const category = (item.category || "").toLowerCase();
+              const name = (item.name || "").toLowerCase();
+              return !hiddenTerms.some(
+                (term) => category.includes(term) || name.includes(term)
+              );
+            });
 
-  return !hiddenTerms.some(term => category === term || name === term);
-});
-
-
+            // If no visible items, skip rendering this order card
+            if (filteredItems.length === 0) return null;
 
             return (
               <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
                 <div
                   className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${order.status?.toLowerCase() === "ready"
-                    ? "bg-success bg-opacity-10"
-                    : order.status?.toLowerCase() === "completed"
-                      ? "bg-primary bg-opacity-10"
-                      : "bg-white"
+                      ? "bg-success bg-opacity-10"
+                      : order.status?.toLowerCase() === "completed"
+                        ? "bg-primary bg-opacity-10"
+                        : "bg-white"
                     }`}
                 >
                   <Badge
@@ -148,11 +142,11 @@ const OrderCard = () => {
                   </Badge>
 
                   {/* Header */}
-                  {/* Header */}
                   <div className="mb-2">
                     <strong className="fs-6">
-                      {/* Show customerName if exists, else tableNumber */}
-                      {order.customerName ? order.customerName : `Table ${order.tableNumber || order.table}`}
+                      {order.customerName
+                        ? order.customerName
+                        : `Table ${order.tableNumber || order.table}`}
                     </strong>
                     <div className="text-dark fw-medium small">
                       Order ID: #{order.orderId}
@@ -161,7 +155,7 @@ const OrderCard = () => {
 
                   {/* Items */}
                   <div className="flex-grow-1 mb-2">
-                    {items.map((item, i) => {
+                    {filteredItems.map((item, i) => {
                       const lineStyle = item.isCancelled
                         ? { textDecoration: "line-through", color: "#999" }
                         : {};
@@ -210,24 +204,21 @@ const OrderCard = () => {
                       </div>
                     </div>
 
-                    {!["ready", "canceled"].includes(
-                      order.status?.toLowerCase()
-                    ) && (
-                        <Button
-                          size="sm"
-                          variant="success"
-                          onClick={() => handleMarkCompleted(order.orderId)}
-                        >
-                          Mark Ready
-                        </Button>
-                      )}
+                    {!["ready", "canceled"].includes(order.status?.toLowerCase()) && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => handleMarkCompleted(order.orderId)}
+                      >
+                        Mark Ready
+                      </Button>
+                    )}
                   </div>
                 </div>
               </Col>
             );
           })}
       </Row>
-
     </div>
   );
 };

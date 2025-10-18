@@ -276,55 +276,34 @@ const OrderCard = () => {
     }
   };
 
-  const handlePrintOrder = async (order) => {
-    let restaurant = {
-      name: "MK's Food",
-      address: "123 Main Street, City",
-      phone: "9876543210",
-      logo: "",
-    };
+const handlePrintOrder = async (order) => {
+  let restaurant = {
+    name: "MK's Food",
+    address: "123 Main Street, City",
+    phone: "9876543210",
+    logo: "",
+  };
 
-    // Fetch restaurant settings
-    try {
-      const settings = await fetchSettings();
-      restaurant.name = settings.restaurantName || restaurant.name;
-      restaurant.address = settings.address || restaurant.address;
-      restaurant.phone = settings.phoneNumber || restaurant.phone;
+  try {
+    const settings = await fetchSettings();
+    restaurant.name = settings.restaurantName || restaurant.name;
+    restaurant.address = settings.address || restaurant.address;
+    restaurant.phone = settings.phoneNumber || restaurant.phone;
 
-      if (settings.logo) {
-        const response = await fetch(settings.logo);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        restaurant.logo = await new Promise(resolve => {
-          reader.onloadend = () => resolve(reader.result);
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch restaurant settings:", err);
+    if (settings.logo) {
+      const response = await fetch(settings.logo);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      restaurant.logo = await new Promise(resolve => {
+        reader.onloadend = () => resolve(reader.result);
+      });
     }
+  } catch (err) {
+    console.error("Failed to fetch restaurant settings:", err);
+  }
 
-    // Remove any existing overlay
-    const existing = document.getElementById("order-preview-overlay");
-    if (existing) existing.remove();
-
-    // Create print overlay
-    const overlay = document.createElement("div");
-    overlay.id = "order-preview-overlay";
-    Object.assign(overlay.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "100%",
-      background: "#fff",
-      overflowY: "auto",
-      zIndex: "9999",
-      padding: "10px",
-      fontFamily: "'Courier New', monospace",
-    });
-
-    const itemsRows = (order.items || []).map(i => `
+  const itemsRows = (order.items || []).map(i => `
     <tr>
       <td>${i.name || i.menuItem}</td>
       <td style="text-align:center;">${i.quantity}</td>
@@ -332,31 +311,29 @@ const OrderCard = () => {
     </tr>
   `).join("");
 
-    // Calculate subtotal
-    const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
-    const discountValue = order.discountValue || 0;
-    const finalTotal = subtotal - discountValue;
+  const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
+  const discountValue = order.discountValue || 0;
+  const finalTotal = subtotal - discountValue;
 
-    // Payment method section
-    let paymentSection = '';
-    if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
-      paymentSection = `
-        <div style="margin-top:10px; padding:10px; border:1px dashed #333;">
-          <strong>Payment Details (Split):</strong><br>
-          ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ₹${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
-          ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ₹${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
-        </div>
-      `;
-    } else {
-      paymentSection = `
-        <div style="margin-top:10px;">
-          <strong>Payment Method:</strong> ${order.paymentMethod || 'Cash'}
-        </div>
-      `;
-    }
+  let paymentSection = '';
+  if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
+    paymentSection = `
+      <div style="margin-top:10px; padding:10px; border:1px dashed #333;">
+        <strong>Payment Details (Split):</strong><br>
+        ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ₹${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
+        ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ₹${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
+      </div>
+    `;
+  } else {
+    paymentSection = `
+      <div style="margin-top:10px;">
+        <strong>Payment Method:</strong> ${order.paymentMethod || 'Cash'}
+      </div>
+    `;
+  }
 
-    overlay.innerHTML = `
-    <div style="max-width:400px; margin:auto;">
+  const contentHTML = `
+    <div style="max-width:400px; margin:auto; font-family: 'Courier New', monospace;">
       <div style="text-align:center; margin-bottom:10px;">
         ${restaurant.logo ? `<img src="${restaurant.logo}" style="width:80px; height:auto; margin-bottom:5px;"><br>` : ""}
         <h2>${restaurant.name}</h2>
@@ -405,44 +382,68 @@ const OrderCard = () => {
     </div>
   `;
 
-    document.body.appendChild(overlay);
+  // Create or get the print iframe
+  let iframe = document.getElementById("print-frame");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "print-frame";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+  }
 
-    // Wait for all images in overlay to load before printing
-    const allImages = overlay.querySelectorAll("img");
-    let imagesLoaded = 0;
-
-    if (allImages.length === 0) {
-      triggerPrint();
-    } else {
-      allImages.forEach((img) => {
-        img.onload = img.onerror = () => {
-          imagesLoaded++;
-          if (imagesLoaded === allImages.length) {
-            triggerPrint();
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>Print Order</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          * {
+            box-sizing: border-box;
           }
-        };
-      });
-
-      // Fallback: if images don't load in 3 seconds, still try printing
-      setTimeout(() => {
-        if (imagesLoaded < allImages.length) {
-          console.warn("Images took too long to load. Proceeding to print anyway.");
-          triggerPrint();
-        }
-      }, 3000);
-    }
-
-    // Print function
-    function triggerPrint() {
-      const bodyChildren = [...document.body.children].filter(c => c !== overlay);
-      bodyChildren.forEach(c => (c.style.display = "none"));
-
-      window.print();
-
-      bodyChildren.forEach(c => (c.style.display = ""));
-      overlay.remove();
-    }
-  };
+          @page {
+            size: auto;
+            margin: 10mm;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 0;
+            padding: 10px;
+            background: #fff;
+            color: #000;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          th, td {
+            padding: 6px 4px;
+            border: 1px solid #333;
+          }
+          th {
+            background: #eee;
+          }
+          hr {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 10px 0;
+          }
+          img {
+            max-width: 80px;
+            height: auto;
+            margin-bottom: 5px;
+          }
+        </style>
+      </head>
+      <body onload="window.focus(); window.print(); window.onafterprint = () => window.close();">
+        ${contentHTML}
+      </body>
+    </html>
+  `);
+  doc.close();
+};
 
   const calculateOrderTotal = (order) => {
     if (!order) return 0;

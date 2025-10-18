@@ -17,6 +17,19 @@ const KitchenDisplay = () => {
   const audioRef = useRef(null); // Sound notification reference
   const previousOrderIdsRef = useRef([]); // Track previous order IDs
 
+  // Terms/categories to hide orders containing only these items
+  const hiddenTerms = [
+    "cold drink",
+    "cold drinks",
+    "drinks",
+    "beverage",
+    "beverages",
+    "bon",
+    "sprite",
+    "water bottle",
+    "mango"
+  ];
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -43,9 +56,7 @@ const KitchenDisplay = () => {
         const newOrderIds = newOrders.map((o) => o.orderId);
         const prevOrderIds = previousOrderIdsRef.current;
 
-        const hasNewOrders = newOrderIds.some(
-          (id) => !prevOrderIds.includes(id)
-        );
+        const hasNewOrders = newOrderIds.some((id) => !prevOrderIds.includes(id));
 
         if (hasNewOrders && audioRef.current) {
           audioRef.current.play().catch((err) => {
@@ -75,6 +86,26 @@ const KitchenDisplay = () => {
   }, []);
 
   const handleMarkCompleted = async (orderId) => {
+    const order = orders.find((o) => o.orderId === orderId);
+    if (!order) {
+      toast.error("Order not found.");
+      return;
+    }
+
+    // Filter visible items
+    const visibleItems = (order.items || []).filter((item) => {
+      const category = (item.category || "").toLowerCase();
+      const name = (item.name || "").toLowerCase();
+      return !hiddenTerms.some(
+        (term) => category.includes(term) || name.includes(term)
+      );
+    });
+
+    if (visibleItems.length === 0) {
+      toast.info("No visible items to mark as Ready.");
+      return; // Do not proceed if no visible items
+    }
+
     try {
       await updateOrderStatus(orderId, "Ready");
       toast.success("Order items Ready");
@@ -147,8 +178,7 @@ const KitchenDisplay = () => {
                   return 1;
                 };
 
-                const priorityDiff =
-                  orderPriority(aStatus) - orderPriority(bStatus);
+                const priorityDiff = orderPriority(aStatus) - orderPriority(bStatus);
                 if (priorityDiff !== 0) return priorityDiff;
 
                 const aTime = new Date(a.createdAt || 0).getTime();
@@ -156,7 +186,17 @@ const KitchenDisplay = () => {
                 return bTime - aTime;
               })
               .map((order, idx) => {
-                const items = order.items || [];
+                // Filter visible items per order
+                const visibleItems = (order.items || []).filter((item) => {
+                  const category = (item.category || "").toLowerCase();
+                  const name = (item.name || "").toLowerCase();
+                  return !hiddenTerms.some(
+                    (term) => category.includes(term) || name.includes(term)
+                  );
+                });
+
+                // If no visible items, skip rendering this order card
+                if (visibleItems.length === 0) return null;
 
                 return (
                   <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
@@ -187,14 +227,13 @@ const KitchenDisplay = () => {
                         <strong className="fs-6">
                           {order.customerName
                             ? order.customerName // Show customer name for Takeaway
-                            : `Table ${order.tableNumber || order.table}`} 
+                            : `Table ${order.tableNumber || order.table}`}
                         </strong>
-
                       </div>
 
-                      {/* Items */}
+                      {/* Visible Items */}
                       <div className="flex-grow-1 mb-2">
-                        {items.map((item, i) => {
+                        {visibleItems.map((item, i) => {
                           const lineStyle = item.isCancelled
                             ? { textDecoration: "line-through", color: "#999" }
                             : {};
@@ -206,14 +245,11 @@ const KitchenDisplay = () => {
                             >
                               <div>
                                 <div className="fw-semibold" style={lineStyle}>
-                                  {item.quantity}x{" "}
-                                  {item.name || item.menuItem}
+                                  {item.quantity}x {item.name || item.menuItem}
                                 </div>
                                 <div className="d-flex align-items-center gap-1 mt-1 flex-wrap">
                                   <span
-                                    className={`badge bg-${item.foodType === "Jain"
-                                        ? "success"
-                                        : "primary"
+                                    className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"
                                       } mt-1`}
                                   >
                                     {item.foodType}
@@ -246,17 +282,15 @@ const KitchenDisplay = () => {
                           </div>
                         </div>
 
-                        {!["ready", "canceled"].includes(
-                          order.status?.toLowerCase()
-                        ) && (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => handleMarkCompleted(order.orderId)}
-                            >
-                              Mark Ready
-                            </Button>
-                          )}
+                        {!["ready", "canceled"].includes(order.status?.toLowerCase()) && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => handleMarkCompleted(order.orderId)}
+                          >
+                            Mark Ready
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Col>
