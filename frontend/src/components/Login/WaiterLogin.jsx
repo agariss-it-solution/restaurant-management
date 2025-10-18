@@ -12,13 +12,29 @@ const WaiterLogin = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ Check if already logged in
+  // ✅ Check if already logged in and set auto logout timer
   useEffect(() => {
     const token = localStorage.getItem("token");
     const expiry = localStorage.getItem("tokenExpiry");
 
-    if (token && expiry && new Date().getTime() < Number(expiry)) {
-      navigate("/waiter", { replace: true });
+    if (token && expiry) {
+      const now = new Date().getTime();
+      if (now < Number(expiry)) {
+        navigate("/waiter", { replace: true });
+
+        // Calculate remaining time until expiry and set logout timer
+        const timeout = Number(expiry) - now;
+        const timerId = setTimeout(() => {
+          localStorage.clear();
+          toast.info("🔒 Session expired. Please login again.");
+          navigate("/login/waiter", { replace: true });
+        }, timeout);
+
+        return () => clearTimeout(timerId);
+      } else {
+        // Token expired, clear storage
+        localStorage.clear();
+      }
     }
   }, [navigate]);
 
@@ -42,12 +58,19 @@ const WaiterLogin = () => {
       const userEmail = res?.data?.email;
 
       if (token && role === "waiter") {
-      
-        const expiryTime = new Date().getTime() + 60 * 60 * 1000;
+        // Set expiry time 24 hours from now (in ms)
+        const expiryTime = new Date().getTime() + 24 * 60 * 60 * 1000;
         localStorage.setItem("token", token);
         localStorage.setItem("role", role);
         localStorage.setItem("email", userEmail);
         localStorage.setItem("tokenExpiry", expiryTime.toString());
+
+        // Set auto logout timer
+        setTimeout(() => {
+          localStorage.clear();
+          toast.info("🔒 Session expired. Please login again.");
+          navigate("/login/waiter", { replace: true });
+        }, 24 * 60 * 60 * 1000); // 24 hours in ms
 
         toast.success("Login successful!");
         navigate("/waiter", { replace: true });
@@ -177,9 +200,13 @@ const WaiterLogin = () => {
               fontSize: "15px",
             }}
           >
-            {loading ? "Signing in..." : <>
-              <PersonFill /> Sign In
-            </>}
+            {loading ? (
+              "Signing in..."
+            ) : (
+              <>
+                <PersonFill /> Sign In
+              </>
+            )}
           </button>
         </form>
       </div>

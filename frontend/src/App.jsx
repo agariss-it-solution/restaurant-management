@@ -3,7 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import ProtectedRoute from "./ProtectedRoute"
 // Navbar
 import AppNavbar from "./components/AppNavbar/AppNavbar";
 
@@ -60,7 +60,13 @@ function AppRoutes() {
         <Route path="/login/chef" element={<ChefLogin />} />
 
         {/* Waiter Routes with Navbar */}
-        <Route element={<WaiterLayout />}>
+        <Route
+          element={
+            <ProtectedRoute role="waiter">
+              <WaiterLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route path="/waiter" element={<WaiterView />} />
           <Route path="/tables" element={<TableManagement />} />
           <Route path="/menu/:tableId" element={<MenuPage />} />
@@ -71,20 +77,25 @@ function AppRoutes() {
         <Route path="/kitchen" element={<KitchenView />} />
 
         {/* Admin */}
-        <Route path="/admin" element={<AdminPanel />}>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute role="admin">
+              <AdminPanel />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="tables" element={<Tables />} />
           <Route path="orders" element={<Orders />} />
           <Route path="kitchen" element={<Kitchen />} />
           <Route path="billing" element={<Billing />} />
-
           <Route path="analytics" element={<Analytics />} />
           <Route path="managemenu" element={<ManageMenuPage />} />
           <Route path="adminmenu/:tableId" element={<AdminMenuPage />} />
           <Route path="order-history" element={<OrderHistory />} />
-          <Route path="/admin/takeaway" element={<TakeawayOrders />} />
-
+          <Route path="takeaway" element={<TakeawayOrders />} />
         </Route>
 
         {/* Fallback */}

@@ -27,7 +27,8 @@ const KitchenDisplay = () => {
     "bon",
     "sprite",
     "water bottle",
-    "mango"
+    "mango",
+    "maaza"
   ];
 
   const handleLogout = async () => {

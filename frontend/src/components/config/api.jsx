@@ -22,7 +22,18 @@ export const loginUser = async (userData) => {
       body: JSON.stringify(userData),
     });
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`;
+      try {
+        // Try to parse error message from response body
+        const errorData = await response.json();
+        if (errorData.message) errorMessage = errorData.message;
+      } catch {
+        // response not JSON, ignore
+      }
+      throw new Error(errorMessage);
+    }
+
     const result = await response.json();
     return result; // { message, data: { token, email, role } }
   } catch (error) {
@@ -30,6 +41,7 @@ export const loginUser = async (userData) => {
     throw error;
   }
 };
+
 export const logout = async () => {
   const token = getToken(); // get the token from wherever you store it
 

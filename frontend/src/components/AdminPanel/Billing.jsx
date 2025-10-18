@@ -219,7 +219,7 @@ function BillingRevenue() {
     const totalAmount = calculateBillTotal();
 
     const contentHTML = `
-    <div style="width: 100%; font-family: Arial, sans-serif; font-size: 12px; color: #222;">
+    <div style="max-width:400px; font-family: Arial, sans-serif; margin:auto; font-size: 12px; color: #222;">
       <div style="text-align: center; margin-bottom: 10px;">
         ${settings.logo ? `<img src="${settings.logo}" style="width: 80px; height: auto; margin-bottom: 10px;">` : ""}
         <h2 style="margin: 0;">${settings.restaurantName}</h2>
@@ -277,8 +277,7 @@ function BillingRevenue() {
     doc.write(`
     <html>
       <head>
-        <title>Print Bill</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+             <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
           * {
             box-sizing: border-box;

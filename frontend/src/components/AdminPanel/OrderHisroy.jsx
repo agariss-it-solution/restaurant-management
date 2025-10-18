@@ -73,170 +73,98 @@ const OrderCard = () => {
   };
 
   // ---------------- EXPORT EXCEL ----------------
+const exportExcel = () => {
+  const orders = getFilteredOrders();
+  if (!orders.length) return alert("No orders to export!");
 
-  const exportExcel = () => {
-    const mergedOrders = mergeOrdersById(getFilteredOrders());
-    if (!mergedOrders.length) return alert("No orders to export!");
+  const rows = orders.map(order => {
+    const method = order.paymentMethod?.toLowerCase() || "";
 
-    const rows = [];
+    const cash = (order.paymentAmounts?.cash ?? (method === "cash" ? order.Price : 0)) || 0;
+    const online = (order.paymentAmounts?.online ?? (method === "online" ? order.Price : 0)) || 0;
+    const total = cash + online;
 
-    mergedOrders.forEach((order) => {
-      const tableOrCustomer = order.tableNumber
-        ? `Table ${order.tableNumber}`
-        : order.customerName || "-";
+    const items = (order.items || [])
+      .map(item => `${item.quantity}x ${item.name || item.menuItem}`)
+      .join(", ");
 
-      // Determine payment info
-      let paymentInfo = "";
-      if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
-        const parts = [];
-        if (order.paymentAmounts.cash > 0) parts.push(`Cash: ₹${order.paymentAmounts.cash.toFixed(2)}`);
-        if (order.paymentAmounts.online > 0) parts.push(`Online: ₹${order.paymentAmounts.online.toFixed(2)}`);
-        paymentInfo = parts.join(" | ");
-      } else if (order.paymentMethod?.toLowerCase() === "cash") {
-        paymentInfo = `Cash: ₹${order.totalAmount?.toFixed(2) || order.Price?.toFixed(2)}`;
-      } else if (order.paymentMethod?.toLowerCase() === "online") {
-        paymentInfo = `Online: ₹${order.totalAmount?.toFixed(2) || order.Price?.toFixed(2)}`;
-      }
+    return {
+      "Bill ID": order.orderId,
+      "Date": new Date(order.createdAt).toISOString().split("T")[0],
+      "Payment Type": method.charAt(0).toUpperCase() + method.slice(1),
+      "Cash Amount (₹)": `${cash.toFixed(2)}`,
+      "Online Amount (₹)": `${online.toFixed(2)}`,
+      "Total Amount (₹)": `${total.toFixed(2)}`,
+      "Items Ordered": items
+    };
+  });
 
-      // Header per order
-      rows.push({
-        "Order ID": `#${order.orderId}`,
-        Table: tableOrCustomer,
-        Item: "",
-        Quantity: "",
-        Price: "",
-        "Food Type": "",
-        Status: order.status,
-        "Ordered Time": order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : "",
-        Payment: paymentInfo,
-        Total: "",
-      });
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
 
-      // Order items
-      (order.items || []).forEach((item) => {
-        rows.push({
-          "Order ID": "",
-          Table: "",
-          Item: item.name || item.menuItem,
-          Quantity: item.quantity,
-          Price: (Number(item.Price ?? item.price) || 0).toFixed(2),
-          "Food Type": item.foodType || "",
-          Status: "",
-          "Ordered Time": "",
-          Payment: "",
-          Total: ((Number(item.Price ?? item.price) || 0) * item.quantity).toFixed(2),
-        });
-      });
+  worksheet["!cols"] = Object.keys(rows[0]).map(key => ({ wch: key.length + 20 }));
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Billing Details");
 
-      // Bill total
-      rows.push({
-        "Order ID": "",
-        Table: "",
-        Item: "➡ BILL TOTAL",
-        Quantity: "",
-        Price: "",
-        "Food Type": "",
-        Status: "",
-        "Ordered Time": "",
-        Payment: "",
-        Total: order.Price.toFixed(2),
-      });
-
-      rows.push({}); // spacing
-    });
-
-    const grandTotal = mergedOrders.reduce((sum, o) => sum + o.Price, 0);
-    rows.push({ Item: "🧾 GRAND TOTAL", Total: grandTotal.toFixed(2) });
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-
-    // Auto fit columns
-    const maxWidths = [];
-    rows.forEach((row) => {
-      Object.keys(row).forEach((key, i) => {
-        const len = String(row[key] ?? "").length;
-        maxWidths[i] = Math.max(maxWidths[i] || 10, len + 2);
-      });
-    });
-    worksheet["!cols"] = maxWidths.map((w) => ({ wch: w }));
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Orders");
-    XLSX.writeFile(workbook, `Orders_Report_${new Date().toLocaleDateString("en-GB")}.xlsx`);
-  };
+  XLSX.writeFile(workbook, `Billing_Report_${new Date().toLocaleDateString("en-GB")}.xlsx`);
+};
 
 
-  const exportPDF = () => {
-    const mergedOrders = mergeOrdersById(getFilteredOrders());
-    if (!mergedOrders.length) return alert("No orders to export!");
 
-    const doc = new jsPDF();
-    let currentY = 25;
-    let grandTotal = 0;
+const exportPDF = () => {
+  const orders = getFilteredOrders();
+  if (!orders.length) return alert("No orders to export!");
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Restaurant Daily Orders Report", 105, 15, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
+  const doc = new jsPDF("landscape");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Sheet 1 – Billing Details", 10, 15);
 
-    mergedOrders.forEach((order, index) => {  
-      const tableOrCustomer = order.tableNumber
-        ? `Table ${order.tableNumber}`
-        : order.customerName || "-";
+  const tableData = orders.map(order => {
+    const method = order.paymentMethod?.toLowerCase() || "";
 
-      const tableData = (order.items || []).map((item, i) => [
-        i + 1,
-        item.name || item.menuItem || "-",
-        item.quantity || 0,
-        (Number(item.Price ?? item.price) || 0).toFixed(2),
-        ((Number(item.Price ?? item.price) || 0) * (item.quantity || 0)).toFixed(2),
-      ]);
+    const cash = (order.paymentAmounts?.cash ?? (method === "cash" ? order.Price : 0)) || 0;
+    const online = (order.paymentAmounts?.online ?? (method === "online" ? order.Price : 0)) || 0;
+    const total = cash + online;
 
-      const billTotal = order.Price ?? tableData.reduce((sum, row) => sum + Number(row[4]), 0);
-      grandTotal += billTotal;
+    const items = (order.items || [])
+      .map(item => `${item.quantity}x ${item.name || item.menuItem}`)
+      .join(", ");
 
-      // Section header
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(40, 40, 40);
-      doc.text(
-        `${tableOrCustomer} | Order ID: ${order.orderId} | Status: ${order.status}`,
-        14,
-        currentY
-      );
-      currentY += 5;
+    return [
+      order.orderId,
+      new Date(order.createdAt).toISOString().split("T")[0],
+      method.charAt(0).toUpperCase() + method.slice(1),
+      `${cash.toFixed(2)}`,
+      `${online.toFixed(2)}`,
+      `${total.toFixed(2)}`,
+      items
+    ];
+  });
 
-      // Items table
-      autoTable(doc, {
-        head: [["#", "Item Name", "Qty", "Price", "Total"]],
-        body: [...tableData, ["", "", "", "Bill Total", billTotal.toFixed(2)]],
-        startY: currentY,
-        theme: "grid",
-        headStyles: { fillColor: [52, 73, 94], textColor: 255, fontStyle: "bold" },
-        bodyStyles: { fontSize: 10, textColor: [33, 33, 33] },
-        columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 70 }, 2: { cellWidth: 20 }, 3: { cellWidth: 25 }, 4: { cellWidth: 25, halign: "right" } },
-      });
+  autoTable(doc, {
+    startY: 20,
+    head: [["Bill ID", "Date", "Payment Type", "Cash Amount", "Online Amount", "Total Amount", "Items Ordered"]],
+    body: tableData,
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: {
+      fillColor: [34, 45, 50],
+      textColor: 255,
+      fontStyle: "bold"
+    },
+    columnStyles: {
+      0: { cellWidth: 20 },
+      1: { cellWidth: 30 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 35 },
+      5: { cellWidth: 35 },
+      6: { cellWidth: 90 }
+    }
+  });
 
-      currentY = doc.lastAutoTable.finalY + 6;
-      doc.setDrawColor(200);
-      doc.line(14, currentY, 196, currentY);
-      currentY += 10;
+  doc.save(`Billing_Report_${new Date().toLocaleDateString("en-GB")}.pdf`);
+};
 
-      if (currentY > 260 && index < mergedOrders.length - 1) {
-        doc.addPage();
-        currentY = 25;
-      }
-    });
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(0, 0, 150);
-    doc.text(`Grand Total: ₹${grandTotal.toFixed(2)}`, 14, currentY);
-    doc.line(14, currentY + 2, 196, currentY + 2);
-
-    doc.save(`Orders_Report_${new Date().toLocaleDateString("en-GB")}.pdf`);
-  };
 
 
   const handleSaveDiscount = async (bill) => {
@@ -276,63 +204,63 @@ const OrderCard = () => {
     }
   };
 
-const handlePrintOrder = async (order) => {
-  let restaurant = {
-    name: "MK's Food",
-    address: "123 Main Street, City",
-    phone: "9876543210",
-    logo: "",
-  };
+  const handlePrintOrder = async (order) => {
+    let restaurant = {
+      name: "MK's Food",
+      address: "123 Main Street, City",
+      phone: "9876543210",
+      logo: "",
+    };
 
-  try {
-    const settings = await fetchSettings();
-    restaurant.name = settings.restaurantName || restaurant.name;
-    restaurant.address = settings.address || restaurant.address;
-    restaurant.phone = settings.phoneNumber || restaurant.phone;
+    try {
+      const settings = await fetchSettings();
+      restaurant.name = settings.restaurantName || restaurant.name;
+      restaurant.address = settings.address || restaurant.address;
+      restaurant.phone = settings.phoneNumber || restaurant.phone;
 
-    if (settings.logo) {
-      const response = await fetch(settings.logo);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      restaurant.logo = await new Promise(resolve => {
-        reader.onloadend = () => resolve(reader.result);
-      });
+      if (settings.logo) {
+        const response = await fetch(settings.logo);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        restaurant.logo = await new Promise(resolve => {
+          reader.onloadend = () => resolve(reader.result);
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch restaurant settings:", err);
     }
-  } catch (err) {
-    console.error("Failed to fetch restaurant settings:", err);
-  }
 
-  const itemsRows = (order.items || []).map(i => `
+    const itemsRows = (order.items || []).map(i => `
     <tr>
       <td>${i.name || i.menuItem}</td>
       <td style="text-align:center;">${i.quantity}</td>
-      <td style="text-align:right;">₹${((i.Price || i.price) * i.quantity).toFixed(2)}</td>
+      <td style="text-align:right;">${((i.Price || i.price) * i.quantity).toFixed(2)}</td>
     </tr>
   `).join("");
 
-  const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
-  const discountValue = order.discountValue || 0;
-  const finalTotal = subtotal - discountValue;
+    const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
+    const discountValue = order.discountValue || 0;
+    const finalTotal = subtotal - discountValue;
 
-  let paymentSection = '';
-  if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
-    paymentSection = `
+    let paymentSection = '';
+    if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
+      paymentSection = `
       <div style="margin-top:10px; padding:10px; border:1px dashed #333;">
         <strong>Payment Details (Split):</strong><br>
-        ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ₹${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
-        ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ₹${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
+        ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
+        ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
       </div>
     `;
-  } else {
-    paymentSection = `
+    } else {
+      paymentSection = `
       <div style="margin-top:10px;">
         <strong>Payment Method:</strong> ${order.paymentMethod || 'Cash'}
       </div>
     `;
-  }
+    }
 
-  const contentHTML = `
+    const contentHTML = `
     <div style="max-width:400px; margin:auto; font-family: 'Courier New', monospace;">
       <div style="text-align:center; margin-bottom:10px;">
         ${restaurant.logo ? `<img src="${restaurant.logo}" style="width:80px; height:auto; margin-bottom:5px;"><br>` : ""}
@@ -361,18 +289,18 @@ const handlePrintOrder = async (order) => {
       <hr>
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
         <strong>Subtotal:</strong> 
-        <strong>₹${subtotal.toFixed(2)}</strong>
+        <strong>${subtotal.toFixed(2)}</strong>
       </div>
       ${discountValue > 0 ? `
         <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc3545;">
           <span>Discount:</span> 
-          <span>- ₹${discountValue.toFixed(2)}</span>
+          <span>- ${discountValue.toFixed(2)}</span>
         </div>
       ` : ''}
       <hr style="border-top:2px solid #000;">
       <div style="display:flex; justify-content:space-between; font-size:18px; margin-bottom:10px;">
         <strong>Total:</strong> 
-        <strong>₹${finalTotal.toFixed(2)}</strong>
+        <strong>${finalTotal.toFixed(2)}</strong>
       </div>
       ${paymentSection}
       <div style="text-align:center; margin-top:15px; border-top:1px dashed #333; padding-top:10px;">
@@ -382,18 +310,18 @@ const handlePrintOrder = async (order) => {
     </div>
   `;
 
-  // Create or get the print iframe
-  let iframe = document.getElementById("print-frame");
-  if (!iframe) {
-    iframe = document.createElement("iframe");
-    iframe.id = "print-frame";
-    iframe.style.display = "none";
-    document.body.appendChild(iframe);
-  }
+    // Create or get the print iframe
+    let iframe = document.getElementById("print-frame");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "print-frame";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
 
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
     <html>
       <head>
         <title>Print Order</title>
@@ -442,8 +370,8 @@ const handlePrintOrder = async (order) => {
       </body>
     </html>
   `);
-  doc.close();
-};
+    doc.close();
+  };
 
   const calculateOrderTotal = (order) => {
     if (!order) return 0;
