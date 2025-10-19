@@ -28,7 +28,11 @@ const KitchenDisplay = () => {
     "sprite",
     "water bottle",
     "mango",
-    "maaza"
+    "maaza",
+    "pepsi",
+    "coca cola",
+    "limca",
+    "lemon"
   ];
 
   const handleLogout = async () => {
@@ -203,10 +207,10 @@ const KitchenDisplay = () => {
                   <Col key={order.orderId || idx} xs={12} sm={6} lg={3}>
                     <div
                       className={`border rounded shadow-sm p-3 d-flex flex-column h-100 position-relative ${order.status?.toLowerCase() === "ready"
-                          ? "bg-success bg-opacity-10"
-                          : order.status?.toLowerCase() === "completed"
-                            ? "bg-primary bg-opacity-10"
-                            : "bg-white"
+                        ? "bg-success bg-opacity-10"
+                        : order.status?.toLowerCase() === "completed"
+                          ? "bg-primary bg-opacity-10"
+                          : "bg-white"
                         }`}
                     >
                       <Badge

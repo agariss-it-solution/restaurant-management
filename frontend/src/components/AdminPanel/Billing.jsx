@@ -1,3 +1,5 @@
+// Billing code
+
 import React, { useState, useEffect } from "react";
 import { FiCheckCircle, FiCreditCard, FiPrinter } from "react-icons/fi";
 import { getAllBills, fetchSettings, payBill, getAnalytics } from "../config/api";
@@ -176,165 +178,146 @@ function BillingRevenue() {
 
 
 
+const handlePrint = async (billId) => {
+  let settings = {
+    restaurantName: "MK'S Food",
+    address: "A2, Night Bazar, Piplod, G8, Night Bazar Piplod Road Surat 3, Surat, Gujarat 395001",
+    phoneNumber: "1234567890",
+    logo: "", // optional
+  };
 
-  const handlePrint = async (billId) => {
-    let settings = {
-      restaurantName: "MK's Food",
-      address: "123 Main Street, City",
-      phoneNumber: "9876543210",
-      logo: "",
-    };
+  try {
+    const response = await fetchSettings();
+    settings.restaurantName = response.restaurantName || settings.restaurantName;
+    settings.address = response.address || settings.address;
+    settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
 
-    try {
-      const response = await fetchSettings();
-      settings.restaurantName = response.restaurantName || settings.restaurantName;
-      settings.address = response.address || settings.address;
-      settings.phoneNumber = response.phoneNumber || settings.phoneNumber;
-
-      if (response.logo) {
-        const logoResp = await fetch(response.logo);
-        const blob = await logoResp.blob();
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        settings.logo = await new Promise(resolve => {
-          reader.onloadend = () => resolve(reader.result);
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch settings:", err);
+    if (response.logo) {
+      const logoResp = await fetch(response.logo);
+      const blob = await logoResp.blob();
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      settings.logo = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result);
+      });
     }
+  } catch (err) {
+    console.error("Failed to fetch settings:", err);
+  }
 
-    const billData = bills.find(b => b._id === billId);
-    if (!billData) return;
+  const billData = bills.find((b) => b._id === billId);
+  if (!billData) return;
 
-    const calculateBillTotal = () => {
-      return billData.orders.reduce((sum, order) =>
-        sum + order.items.reduce((osum, item) => {
+  const calculateBillTotal = () => {
+    return billData.orders.reduce(
+      (sum, order) =>
+        sum +
+        order.items.reduce((osum, item) => {
           if (item.isCancelled || item.quantity === 0) return osum;
           return osum + item.Price * item.quantity;
-        }, 0), 0
-      );
-    };
+        }, 0),
+      0
+    );
+  };
 
-    const totalAmount = calculateBillTotal();
+  const totalAmount = calculateBillTotal();
+  const displayInfo = billData.customerName
+    ? `<strong>Customer Name:</strong> ${billData.customerName}<br>`
+    : `<strong>Table:</strong> ${billData?.table?.number || "-"}<br>`;
 
-    const contentHTML = `
-    <div style="max-width:400px; font-family: Arial, sans-serif; margin:auto; font-size: 12px; color: #222;">
-      <div style="text-align: center; margin-bottom: 10px;">
-        ${settings.logo ? `<img src="${settings.logo}" style="width: 80px; height: auto; margin-bottom: 10px;">` : ""}
-        <h2 style="margin: 0;">${settings.restaurantName}</h2>
+  const date = new Date(billData?.createdAt);
+  const contentHTML = `
+    <div style="width: 100mm; margin: auto; font-family: 'Courier New', monospace; font-size: 12px; color: #000;">
+      <div style="text-align: center;">
+        ${settings.logo ? `<img src="${settings.logo}" style="width:60px; height:auto; margin-bottom:5px;">` : ""}
+        <h3 style="margin: 0; font-size: 16px;">${settings.restaurantName}</h3>
         <p style="margin: 0;">${settings.address}</p>
         <p style="margin: 0;">Phone: ${settings.phoneNumber}</p>
       </div>
-      <hr />
+      <hr style="border-top:1px dashed #000;" />
 
-      <p><strong>Table:</strong> ${billData?.table?.number || "-"}<br>
-      <strong>Date:</strong> ${new Date(billData?.createdAt).toLocaleDateString()}<br>
-      <strong>Time:</strong> ${new Date(billData?.createdAt).toLocaleTimeString()}</p>
+      <p style="margin: 2px 0;">
+        ${displayInfo}
+        <strong>Order ID:</strong> ${billData._id}<br>
+        <strong>Time:</strong> ${date.toLocaleString()}
+      </p>
+      <hr style="border-top:1px dashed #000;" />
 
-      <table style="width: 100%; border-collapse: collapse;">
+      <table style="width:100%; border-collapse:collapse;">
         <thead>
           <tr>
             <th align="left">Item</th>
             <th align="center">Qty</th>
-            <th align="right">Price</th>
+            <th align="right">Amount</th>
           </tr>
         </thead>
         <tbody>
-          ${billData.orders.map(order => order.items
-      .filter(item => !item.isCancelled && item.quantity > 0)
-      .map(item => `
-                <tr>
-                  <td>${item.name}</td>
-                  <td align="center">${item.quantity}</td>
-                  <td align="right">₹${(item.Price * item.quantity).toFixed(2)}</td>
-                </tr>
-              `).join('')
-    ).join('')
-      }
+          ${billData.orders
+            .map((order) =>
+              order.items
+                .filter((item) => !item.isCancelled && item.quantity > 0)
+                .map(
+                  (item) => `
+                  <tr>
+                    <td>${item.name}</td>
+                    <td align="center">${item.quantity}</td>
+                    <td align="right">₹${(item.Price * item.quantity).toFixed(2)}</td>
+                  </tr>
+                `
+                )
+                .join("")
+            )
+            .join("")}
         </tbody>
       </table>
 
-      <hr />
-      <p style="text-align: right;"><strong>Total: ₹${totalAmount.toFixed(2)}</strong></p>
+      <hr style="border-top:1px dashed #000;" />
+      <p style="text-align:right; margin: 0;"><strong>Total:</strong> ₹${totalAmount.toFixed(2)}</p>
+      <hr style="border-top:1px dashed #000;" />
 
-      <div style="text-align: center; margin-top: 40px;">
-        Thank you! Please visit again.
+      <div style="text-align:center; margin-top:10px;">
+        <p style="margin:0;">Thank you for visiting!</p>
+        <p style="margin:0;">Please come again.</p>
       </div>
     </div>
   `;
 
-    let iframe = document.getElementById("print-frame");
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.id = "print-frame";
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-    }
+  let iframe = document.getElementById("print-frame");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "print-frame";
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
+  }
 
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(`
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
     <html>
       <head>
-             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Print Bill</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          * {
-            box-sizing: border-box;
-          }
-
           @page {
-            size: A4 portrait;
-            margin: 20mm;
+            size: 80mm auto;
+            margin: 5mm;
           }
-
-          @media print {
-            html, body {
-              width: 100%;
-              height: 100%;
-              margin: 0;
-              padding: 0;
-              background: white;
-              font-family: Arial, sans-serif;
-              font-size: 12px;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-
-            .receipt-container {
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              min-height: 100vh;
-              width: 100%;
-            }
-
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-
-            th, td {
-              padding: 6px 0;
-              border-bottom: 1px solid #ccc;
-            }
-
-            img {
-              max-width: 100%;
-              height: auto;
-            }
+          body {
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         </style>
       </head>
-      <body onload="window.focus(); window.print(); window.onafterprint = () => window.close();">
-        <div class="receipt-container">
-          ${contentHTML}
-        </div>
+      <body onload="window.print(); window.onafterprint = () => window.close();">
+        ${contentHTML}
       </body>
     </html>
   `);
-    doc.close();
-  };
+  doc.close();
+};
+
 
 
 

@@ -13,30 +13,30 @@ const WaiterLogin = () => {
   const navigate = useNavigate();
 
   // ✅ Check if already logged in and set auto logout timer
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const expiry = localStorage.getItem("tokenExpiry");
+useEffect(() => {
+  const token = localStorage.getItem("token");
+  const expiry = localStorage.getItem("tokenExpiry");
 
-    if (token && expiry) {
-      const now = new Date().getTime();
-      if (now < Number(expiry)) {
-        navigate("/waiter", { replace: true });
+  if (token && expiry) {
+    const now = new Date().getTime();
+    if (now < Number(expiry)) {
+      // defer navigation
+      setTimeout(() => navigate("/login/waiter", { replace: true }), 0);
 
-        // Calculate remaining time until expiry and set logout timer
-        const timeout = Number(expiry) - now;
-        const timerId = setTimeout(() => {
-          localStorage.clear();
-          toast.info("🔒 Session expired. Please login again.");
-          navigate("/login/waiter", { replace: true });
-        }, timeout);
-
-        return () => clearTimeout(timerId);
-      } else {
-        // Token expired, clear storage
+      const timeout = Number(expiry) - now;
+      const timerId = setTimeout(() => {
         localStorage.clear();
-      }
+        toast.info("🔒 Session expired. Please login again.");
+        navigate("/login/waiter", { replace: true });
+      }, timeout);
+
+      return () => clearTimeout(timerId);
+    } else {
+      localStorage.clear();
     }
-  }, [navigate]);
+  }
+}, [navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();

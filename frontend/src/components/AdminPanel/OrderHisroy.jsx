@@ -1,3 +1,5 @@
+// Orderhistory
+
 import React, { useEffect, useState } from "react";
 import { getAllPaidBills, fetchSettings, updateBill } from "../config/api";
 import { Badge, Button, Form, Dropdown, DropdownButton } from "react-bootstrap";
@@ -72,98 +74,213 @@ const OrderCard = () => {
     }
   };
 
-  // ---------------- EXPORT EXCEL ----------------
+
+  
+  // ============ UPDATED EXPORT FUNCTIONS (Replace only these) ============
+
+// ✅ Helper function — total after discount
+const getFinalAmount = (order) => {
+  const total = order.totalAmount || calculateOrderTotal(order);
+  const discount = order.discountValue || order.discountAmount || order.discount || 0;
+  return total - discount;
+};
+
+// ✅ Excel Export
 const exportExcel = () => {
-  const orders = getFilteredOrders();
-  if (!orders.length) return alert("No orders to export!");
+  const mergedOrders = mergeOrdersById(getFilteredOrders());
+  if (!mergedOrders.length) return alert("No orders to export!");
 
-  const rows = orders.map(order => {
-    const method = order.paymentMethod?.toLowerCase() || "";
+  const rows = [];
 
-    const cash = (order.paymentAmounts?.cash ?? (method === "cash" ? order.Price : 0)) || 0;
-    const online = (order.paymentAmounts?.online ?? (method === "online" ? order.Price : 0)) || 0;
-    const total = cash + online;
-
-    const items = (order.items || [])
-      .map(item => `${item.quantity}x ${item.name || item.menuItem}`)
-      .join(", ");
-
-    return {
-      "Bill ID": order.orderId,
-      "Date": new Date(order.createdAt).toISOString().split("T")[0],
-      "Payment Type": method.charAt(0).toUpperCase() + method.slice(1),
-      "Cash Amount (₹)": `${cash.toFixed(2)}`,
-      "Online Amount (₹)": `${online.toFixed(2)}`,
-      "Total Amount (₹)": `${total.toFixed(2)}`,
-      "Items Ordered": items
-    };
+  // Add header
+  rows.push({
+    "Bill ID": "Bill ID",
+    "Date": "Date",
+    "Payment Type": "Payment Type",
+    "Cash Amount (₹)": "Cash Amount (₹)",
+    "Online Amount (₹)": "Online Amount (₹)",
+    "Discount (₹)": "Discount (₹)",
+    "Total Amount (₹)": "Total Amount (₹)",
+    "Items Ordered": "Items Ordered",
   });
 
+  // Add each order as a single row
+  mergedOrders.forEach((order) => {
+    const items = (order.items || [])
+      .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
+      .join(", ");
+
+    const cashAmount = getCashAmount(order);
+    const onlineAmount = getOnlineAmount(order);
+    const discount = order.discountValue || order.discountAmount || order.discount || 0;
+    const totalAfterDiscount = getFinalAmount(order);
+
+    let paymentType = order.paymentMethod || "Cash";
+    if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
+      paymentType = "Split";
+    }
+
+    rows.push({
+      "Bill ID": `${order.orderId}`,
+      "Date": order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A",
+      "Payment Type": paymentType,
+      "Cash Amount (₹)": cashAmount.toFixed(2),
+      "Online Amount (₹)": onlineAmount.toFixed(2),
+      "Discount (₹)": discount.toFixed(2),
+      "Total Amount (₹)": totalAfterDiscount.toFixed(2),
+      "Items Ordered": items,
+    });
+  });
+
+  // Calculate totals
+  const totalCash = mergedOrders.reduce((sum, o) => sum + getCashAmount(o), 0);
+  const totalOnline = mergedOrders.reduce((sum, o) => sum + getOnlineAmount(o), 0);
+  const totalDiscount = mergedOrders.reduce((sum, o) => sum + (o.discountValue || o.discountAmount || o.discount || 0), 0);
+  const totalFinal = mergedOrders.reduce((sum, o) => sum + getFinalAmount(o), 0);
+
+  // Add total row
+  rows.push({
+    "Bill ID": "TOTAL",
+    "Date": "",
+    "Payment Type": "",
+    "Cash Amount (₹)": totalCash.toFixed(2),
+    "Online Amount (₹)": totalOnline.toFixed(2),
+    "Discount (₹)": totalDiscount.toFixed(2),
+    "Total Amount (₹)": totalFinal.toFixed(2),
+    "Items Ordered": "",
+  });
+
+  // Create Excel
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();
 
-  worksheet["!cols"] = Object.keys(rows[0]).map(key => ({ wch: key.length + 20 }));
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Billing Details");
+  worksheet["!cols"] = [
+    { wch: 20 }, { wch: 18 }, { wch: 18 },
+    { wch: 20 }, { wch: 20 }, { wch: 20 },
+    { wch: 20 }, { wch: 50 },
+  ];
 
-  XLSX.writeFile(workbook, `Billing_Report_${new Date().toLocaleDateString("en-GB")}.xlsx`);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Billing Details");
+  XLSX.writeFile(workbook, `Billing_Details_${new Date().toLocaleDateString("en-GB")}.xlsx`);
 };
 
-
-
+// ✅ PDF Export
 const exportPDF = () => {
-  const orders = getFilteredOrders();
-  if (!orders.length) return alert("No orders to export!");
+  const mergedOrders = mergeOrdersById(getFilteredOrders());
+  if (!mergedOrders.length) return alert("No orders to export!");
 
-  const doc = new jsPDF("landscape");
+  const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.text("Sheet 1 – Billing Details", 10, 15);
+  doc.text("Sheet 1 – Billing Details", 14, 15);
 
-  const tableData = orders.map(order => {
-    const method = order.paymentMethod?.toLowerCase() || "";
+  // Totals
+  const totalCash = mergedOrders.reduce((sum, o) => sum + getCashAmount(o), 0);
+  const totalOnline = mergedOrders.reduce((sum, o) => sum + getOnlineAmount(o), 0);
+  const totalDiscount = mergedOrders.reduce(
+    (sum, o) => sum + (o.discountValue || o.discountAmount || o.discount || 0),
+    0
+  );
+  const totalFinal = mergedOrders.reduce((sum, o) => sum + getFinalAmount(o), 0);
 
-    const cash = (order.paymentAmounts?.cash ?? (method === "cash" ? order.Price : 0)) || 0;
-    const online = (order.paymentAmounts?.online ?? (method === "online" ? order.Price : 0)) || 0;
-    const total = cash + online;
-
+  // Prepare rows
+  const tableData = mergedOrders.map((order) => {
+    // 🔹 make each item appear on a new line
     const items = (order.items || [])
-      .map(item => `${item.quantity}x ${item.name || item.menuItem}`)
-      .join(", ");
+      .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
+      .join("\n");
+
+    const cashAmount = getCashAmount(order);
+    const onlineAmount = getOnlineAmount(order);
+    const discount = order.discountValue || order.discountAmount || order.discount || 0;
+    const totalAfterDiscount = getFinalAmount(order);
+
+    let paymentType = order.paymentMethod || "Cash";
+    if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
+      paymentType = "Split";
+    }
 
     return [
       order.orderId,
-      new Date(order.createdAt).toISOString().split("T")[0],
-      method.charAt(0).toUpperCase() + method.slice(1),
-      `${cash.toFixed(2)}`,
-      `${online.toFixed(2)}`,
-      `${total.toFixed(2)}`,
-      items
+      order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A",
+      paymentType,
+      cashAmount.toFixed(2),
+      onlineAmount.toFixed(2),
+      discount.toFixed(2),
+      totalAfterDiscount.toFixed(2),
+      items, // 🔹 multiline text
     ];
   });
 
+  // Add total row
+  tableData.push([
+    "TOTAL",
+    "",
+    "",
+    totalCash.toFixed(2),
+    totalOnline.toFixed(2),
+    totalDiscount.toFixed(2),
+    totalFinal.toFixed(2),
+    "",
+  ]);
+
+  // Render PDF table
   autoTable(doc, {
-    startY: 20,
-    head: [["Bill ID", "Date", "Payment Type", "Cash Amount", "Online Amount", "Total Amount", "Items Ordered"]],
+    head: [
+      [
+        "Bill ID",
+        "Date",
+        "Payment Type",
+        "Cash Amount ",
+        "Online Amount ",
+        "Discount ",
+        "Total Amount ",
+        "Items Ordered",
+      ],
+    ],
     body: tableData,
-    styles: { fontSize: 9, cellPadding: 2 },
+    startY: 25,
+    theme: "grid",
+    pageBreak: "auto",
     headStyles: {
-      fillColor: [34, 45, 50],
+      fillColor: [40, 40, 40],
       textColor: 255,
-      fontStyle: "bold"
+      fontStyle: "bold",
+      fontSize: 10,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      textColor: [33, 33, 33],
+      valign: "top",
+      cellPadding: 2,
+      whiteSpace: "pre-line", // ✅ allows line breaks in cells
     },
     columnStyles: {
-      0: { cellWidth: 20 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 30 },
-      3: { cellWidth: 35 },
-      4: { cellWidth: 35 },
-      5: { cellWidth: 35 },
-      6: { cellWidth: 90 }
-    }
+      0: { cellWidth: 18 },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 22 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 20 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 80, cellPadding: 3 }, // ✅ wrap for items
+    },
+    margin: { top: 25, right: 10, bottom: 20, left: 10 },
+    styles: {
+      overflow: "linebreak", // ✅ enables text wrapping
+      cellWidth: "wrap",
+    },
+    willDrawCell: (data) => {
+      if (data.row.index === tableData.length - 1 && data.row.section === "body") {
+        data.cell.styles.fillColor = [220, 220, 220];
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
   });
 
-  doc.save(`Billing_Report_${new Date().toLocaleDateString("en-GB")}.pdf`);
+  doc.save(`Billing_Details_${new Date().toLocaleDateString("en-GB")}.pdf`);
 };
+
 
 
 
@@ -235,7 +352,7 @@ const exportPDF = () => {
     <tr>
       <td>${i.name || i.menuItem}</td>
       <td style="text-align:center;">${i.quantity}</td>
-      <td style="text-align:right;">${((i.Price || i.price) * i.quantity).toFixed(2)}</td>
+      <td style="text-align:right;">₹${((i.Price || i.price) * i.quantity).toFixed(2)}</td>
     </tr>
   `).join("");
 
@@ -243,22 +360,10 @@ const exportPDF = () => {
     const discountValue = order.discountValue || 0;
     const finalTotal = subtotal - discountValue;
 
-    let paymentSection = '';
-    if (order.paymentMethod?.toLowerCase() === 'split' && order.paymentAmounts) {
-      paymentSection = `
-      <div style="margin-top:10px; padding:10px; border:1px dashed #333;">
-        <strong>Payment Details (Split):</strong><br>
-        ${order.paymentAmounts.cash > 0 ? `<span style="margin-left:10px;">💵 Cash: ${order.paymentAmounts.cash.toFixed(2)}</span><br>` : ''}
-        ${order.paymentAmounts.online > 0 ? `<span style="margin-left:10px;">💳 Online: ${order.paymentAmounts.online.toFixed(2)}</span><br>` : ''}
-      </div>
-    `;
-    } else {
-      paymentSection = `
-      <div style="margin-top:10px;">
-        <strong>Payment Method:</strong> ${order.paymentMethod || 'Cash'}
-      </div>
-    `;
-    }
+    // Display either customer name (for parcel/delivery) or table number (for dine-in)
+    const displayInfo = order.customerName
+      ? `<strong>Customer Name:</strong> ${order.customerName}<br>`
+      : `<strong>Table:</strong> ${order.tableNumber || order.table}<br>`;
 
     const contentHTML = `
     <div style="max-width:400px; margin:auto; font-family: 'Courier New', monospace;">
@@ -270,7 +375,7 @@ const exportPDF = () => {
         <hr>
       </div>
       <div style="margin-bottom:10px;">
-        <strong>Table:</strong> ${order.tableNumber || order.table}<br>
+        ${displayInfo}
         <strong>Order ID:</strong> #${order.orderId}<br>
         <strong>Time:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}<br>
       </div>
@@ -289,20 +394,19 @@ const exportPDF = () => {
       <hr>
       <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
         <strong>Subtotal:</strong> 
-        <strong>${subtotal.toFixed(2)}</strong>
+        <strong>₹${subtotal.toFixed(2)}</strong>
       </div>
       ${discountValue > 0 ? `
         <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc3545;">
           <span>Discount:</span> 
-          <span>- ${discountValue.toFixed(2)}</span>
+          <span>- ₹${discountValue.toFixed(2)}</span>
         </div>
       ` : ''}
       <hr style="border-top:2px solid #000;">
       <div style="display:flex; justify-content:space-between; font-size:18px; margin-bottom:10px;">
         <strong>Total:</strong> 
-        <strong>${finalTotal.toFixed(2)}</strong>
+        <strong>₹${finalTotal.toFixed(2)}</strong>
       </div>
-      ${paymentSection}
       <div style="text-align:center; margin-top:15px; border-top:1px dashed #333; padding-top:10px;">
         <strong>Thank you for visiting!</strong><br>
         Please come again.
@@ -372,6 +476,7 @@ const exportPDF = () => {
   `);
     doc.close();
   };
+
 
   const calculateOrderTotal = (order) => {
     if (!order) return 0;
@@ -610,35 +715,51 @@ const exportPDF = () => {
                   </div>
 
                   {/* Cash Payment Breakdown Section */}
-                  {order.paymentAmounts && (order.paymentAmounts.cash > 0 && order.paymentAmounts.online > 0) ? (
-                    <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
-                      <div className="fw-semibold mb-2 text-dark">Split Payment:</div>
-                      <div className="d-flex justify-content-between mb-1">
-                        <span>💵 Cash:</span>
-                        <span className="fw-semibold text-warning">₹{order.paymentAmounts.cash.toFixed(2)}</span>
+                  {order.paymentAmounts && (order.paymentAmounts.cash > 0 && order.paymentAmounts.online > 0) ? (() => {
+                    const total = order.paymentAmounts.cash + order.paymentAmounts.online;
+                    const discount = order.discountValue || 0;
+
+                    const cashShare = order.paymentAmounts.cash / total;
+                    const onlineShare = order.paymentAmounts.online / total;
+
+                    const cashAfterDiscount = order.paymentAmounts.cash - (discount * cashShare);
+                    const onlineAfterDiscount = order.paymentAmounts.online - (discount * onlineShare);
+
+                    return (
+                      <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
+                        <div className="fw-semibold mb-2 text-dark">Split Payment </div>
+                        <div className="d-flex justify-content-between mb-1">
+                          <span>💵 Cash:</span>
+                          <span className="fw-semibold text-warning">₹{cashAfterDiscount.toFixed(2)}</span>
+                        </div>
+                        <div className="d-flex justify-content-between">
+                          <span>💳 Online:</span>
+                          <span className="fw-semibold text-info">₹{onlineAfterDiscount.toFixed(2)}</span>
+                        </div>
                       </div>
-                      <div className="d-flex justify-content-between">
-                        <span>💳 Online:</span>
-                        <span className="fw-semibold text-info">₹{order.paymentAmounts.online.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ) : order.paymentMethod?.toLowerCase() === "cash" ? (
+                    );
+                  })() : order.paymentMethod?.toLowerCase() === "cash" ? (
                     <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
-                      <div className="fw-semibold mb-2 text-dark">Payment:</div>
+                      <div className="fw-semibold mb-2 text-dark">Payment </div>
                       <div className="d-flex justify-content-between">
                         <span>💵 Cash:</span>
-                        <span className="fw-semibold text-warning">₹{calculateOrderTotal(order).toFixed(2)}</span>
+                        <span className="fw-semibold text-warning">
+                          ₹{((calculateOrderTotal(order) - (order.discountValue || 0)).toFixed(2))}
+                        </span>
                       </div>
                     </div>
                   ) : (
                     <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-info">
-                      <div className="fw-semibold mb-2 text-dark">Payment:</div>
+                      <div className="fw-semibold mb-2 text-dark">Payment </div>
                       <div className="d-flex justify-content-between">
                         <span>💳 Online:</span>
-                        <span className="fw-semibold text-info">₹{calculateOrderTotal(order).toFixed(2)}</span>
+                        <span className="fw-semibold text-info">
+                          ₹{((calculateOrderTotal(order) - (order.discountValue || 0)).toFixed(2))}
+                        </span>
                       </div>
                     </div>
                   )}
+
 
                   {/* Edit Discount Section */}
                   {!order.isEditing ? (

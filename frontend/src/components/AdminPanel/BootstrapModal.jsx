@@ -1,12 +1,11 @@
+// Bootstrap
+
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { moveTable, fetchAvailableTables, fetchOrders } from "../config/api";
+import KOTModal from "./Kotmodel";
 
-import {
-  moveTable,
-  fetchAvailableTables,
-  fetchOrders,
-} from "../config/api";
-import KOTModal from "./Kotmodel"; // Ensure correct path
 function BootstrapModal({ table, onClose, onAction }) {
   const navigate = useNavigate();
   const [moveMode, setMoveMode] = useState(false);
@@ -18,12 +17,11 @@ function BootstrapModal({ table, onClose, onAction }) {
   const [kots, setKots] = useState([]);
   const [showKOTModal, setShowKOTModal] = useState(false);
   const [kotError, setKotError] = useState(null);
-  const [showMainModal, setShowMainModal] = useState(true); // NEW
+  const [showMainModal, setShowMainModal] = useState(true);
 
   const actions = [
     { key: "viewKots", label: "View KOT(s)" },
     { key: "moveTable", label: "Move Table" },
-    // { key: "printBill", label: "Print Bill" },
     { key: "printBillAndTakePayment", label: "Print Bill & Take Payment" },
   ];
 
@@ -46,11 +44,39 @@ function BootstrapModal({ table, onClose, onAction }) {
   const handleViewKots = async () => {
     setKotError(null);
     try {
+      console.log("Fetching orders for table ID:", table._id); // DEBUG
       const result = await fetchOrders(table._id);
-      setKots(result.data || []);
+      console.log("Full API response:", result); // DEBUG
+      console.log("Response data:", result.data); // DEBUG
+
+      // Filter to only show orders for THIS table
+      const allOrders = result.data || [];
+      const filteredOrders = allOrders.filter((order) => {
+        // Try multiple ways to match table
+        const matchesTableId = order.tableId === table._id || order.table?._id === table._id;
+        const matchesTableNumber = order.tableNumber === table.number;
+        const result = matchesTableId || matchesTableNumber;
+        
+        console.log(`Order ${order.orderId}:`, {
+          orderTableId: order.tableId,
+          orderTable_id: order.table?._id,
+          orderTableNumber: order.tableNumber,
+          providedTableId: table._id,
+          providedTableNumber: table.number,
+          matches: result
+        }); // DEBUG
+        
+        return result;
+      });
+
+      console.log("Filtered orders count:", filteredOrders.length); // DEBUG
+      console.log("Filtered orders:", filteredOrders); // DEBUG
+
+      setKots(filteredOrders);
       setShowMainModal(false);
       setShowKOTModal(true);
     } catch (err) {
+      console.error("Error fetching KOTs:", err); // DEBUG
       setKotError(err.message || "Failed to fetch KOT(s)");
     }
   };
@@ -72,7 +98,6 @@ function BootstrapModal({ table, onClose, onAction }) {
 
   return (
     <>
-      {/* Main modal (conditionally rendered) */}
       {showMainModal && (
         <div
           className="modal fade show d-block"
@@ -84,19 +109,11 @@ function BootstrapModal({ table, onClose, onAction }) {
           <div
             className="modal-dialog modal-dialog-centered"
             role="document"
-            style={{
-              maxWidth: "500px",
-              width: "90%",
-              margin: "auto",
-            }}
+            style={{ maxWidth: "500px", width: "90%", margin: "auto" }}
           >
             <div
               className="modal-content"
-              style={{
-                borderRadius: "10px",
-                overflowY: "auto",
-                maxHeight: "90vh",
-              }}
+              style={{ borderRadius: "10px", overflowY: "auto", maxHeight: "90vh" }}
             >
               <div className="modal-header">
                 <h5 className="modal-title">Table No: {table.number}</h5>
@@ -158,11 +175,7 @@ function BootstrapModal({ table, onClose, onAction }) {
                           handleViewKots();
                         } else if (action.key === "printBillAndTakePayment") {
                           navigate(`/admin/billing`);
-                        } 
-                        // else if (action.key === "printBillAndTakePayment") {
-                        //   navigate(`/takeaway/${table._id}`);
-                        // }
-                         else {
+                        } else {
                           onAction(action.key);
                         }
                       }}
@@ -182,7 +195,6 @@ function BootstrapModal({ table, onClose, onAction }) {
         </div>
       )}
 
-      {/* KOT Modal */}
       {showKOTModal && (
         <KOTModal
           kots={kots}
