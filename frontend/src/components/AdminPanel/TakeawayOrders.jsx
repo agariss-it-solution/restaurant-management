@@ -98,35 +98,41 @@ function TakeawayMenu() {
         return order.reduce((sum, item) => sum + item.Price * item.qty, 0);
     };
 
-    const handleSubmitOrder = async () => {
-        if (order.length === 0) return toast.error("No items in order");
-        if (!customerName.trim()) return toast.error("Please enter customer name");
+ const handleSubmitOrder = async () => {
+    if (order.length === 0) return toast.error("No items in order");
+    if (!customerName.trim()) return toast.error("Please enter customer name");
 
-        const orderData = {
-            orderType: "Takeaway",
-            customerName: customerName.trim(),
-            tableNumber: "Takeaway",
-            items: order.map((item) => ({
-                itemId: item._id,
-                quantity: item.qty,
-                specialInstructions: item.instructions || "",
-                foodType: item.foodType || "Regular",
-            })),
-        };
-
-        try {
-            await submitOrder(orderData);
-            toast.success(" Takeaway order submitted successfully!");
-
-            // Reset after successful order
-            setOrder([]);
-            setCustomerName("");
-            navigate("/admin/takeaway");
-        } catch (err) {
-            console.error("Error submitting order:", err);
-            toast.error(err.message || "Failed to submit order");
-        }
+    const orderData = {
+        orderType: "Takeaway",
+        customerName: customerName.trim(),
+        tableNumber: "Takeaway",
+        items: order.map((item) => ({
+            itemId: item._id,
+            quantity: item.qty,
+            specialInstructions: item.instructions || "",
+            foodType: item.foodType || "Regular",
+        })),
     };
+
+    try {
+        await submitOrder(orderData);
+        toast.success("Takeaway order submitted successfully!");
+
+        // Reset order data
+        setOrder([]);
+        setCustomerName("");
+
+        // ✅ Small delay ensures toast is visible before redirect
+        setTimeout(() => {
+            navigate("/admin/dashboard");
+        });
+
+    } catch (err) {
+        console.error("Error submitting order:", err);
+        toast.error(err.message || "Failed to submit order");
+    }
+};
+
 
 
     if (loading) {
