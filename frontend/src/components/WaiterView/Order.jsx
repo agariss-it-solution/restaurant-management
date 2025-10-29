@@ -11,50 +11,58 @@ const OrderCard = () => {
   const [expandedOrders, setExpandedOrders] = useState({});
   const [editingOrders, setEditingOrders] = useState({});
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const data = await fetchOrders();
-        const normalizedOrders = (data.data || []).map((order) => ({
-          ...order,
-          orderId: order.orderId || order._id,
-          customerName: order.customerName,
-          tableNumber: order.tableNumber || null,
-          items: (order.items || []).map((item, index) => ({
-            ...item,
-            itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
-            quantity: item.quantity || 1,
-            isCancelled: item.isCancelled || false,
-          })),
-        }));
+useEffect(() => {
+  const loadOrders = async () => {
+    try {
+      const data = await fetchOrders();
+      const normalizedOrders = (data.data || []).map((order) => ({
+        ...order,
+        orderId: order.orderId || order._id,
+        customerName: order.customerName,
+        tableNumber: order.tableNumber || null,
+        items: (order.items || []).map((item, index) => ({
+          ...item,
+          itemId: item.itemId || item._id || `${order.orderId}_item_${index}`,
+          quantity: item.quantity || 1,
+          isCancelled: item.isCancelled || false,
+        })),
+      }));
 
-        // Group orders by tableNumber / customerName
-        const groupedOrdersMap = new Map();
+      // Group orders by tableNumber / customerName
+      const groupedOrdersMap = new Map();
 
-        normalizedOrders.forEach((order) => {
-          const key = order.tableNumber || order.customerName || "Takeaway";
+normalizedOrders.forEach((order) => {
+  // Use orderId or unique identifier for part of the key
+  const isTakeaway = !order.tableNumber;
 
-          if (!groupedOrdersMap.has(key)) {
-            groupedOrdersMap.set(key, { ...order, items: [...order.items] });
-          } else {
-            const existing = groupedOrdersMap.get(key);
-            existing.items = [...existing.items, ...order.items];
-          }
-        });
+  // If it’s takeaway, use customerName + orderId to avoid conflict
+  // If it’s table order, use tableNumber
+  const key = isTakeaway
+    ? `${order.customerName || "Takeaway"}_${order.orderId}`
+    : order.tableNumber;
 
-        const groupedOrders = Array.from(groupedOrdersMap.values());
+  if (!groupedOrdersMap.has(key)) {
+    groupedOrdersMap.set(key, { ...order, items: [...order.items] });
+  } else {
+    const existing = groupedOrdersMap.get(key);
+    existing.items = [...existing.items, ...order.items];
+  }
+});
 
-        setOrders(groupedOrders);
-        setOriginalOrders(groupedOrders.map((o) => structuredClone(o)));
-      } catch (err) {
-        console.error("Error loading orders:", err);
-        setError("Failed to fetch orders.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadOrders();
-  }, []);
+      const groupedOrders = Array.from(groupedOrdersMap.values());
+
+      setOrders(groupedOrders);
+      setOriginalOrders(groupedOrders.map((o) => structuredClone(o)));
+    } catch (err) {
+      console.error("Error loading orders:", err);
+      setError("Failed to fetch orders.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  loadOrders();
+}, []);
+
 
   const handleQuantityChange = (orderId, itemId, delta) => {
     setOrders((prev) =>
@@ -80,60 +88,33 @@ const OrderCard = () => {
     try {
       const order = orders.find((o) => o.orderId === orderId);
       const originalOrder = originalOrders.find((o) => o.orderId === orderId);
-      if (!order || !originalOrder) return;
 
-      // Accumulate updated items returned by API calls
-      const updatedItems = [];
+      if (!order || !originalOrder) return;
 
       for (const item of order.items) {
         const originalItem = originalOrder.items.find(
           (i) => i.itemId === item.itemId
         );
+
         const currentQty = parseInt(item.quantity, 10) || 0;
         const originalQty = parseInt(originalItem?.quantity || 0, 10);
 
         if (originalItem && currentQty === originalQty) continue;
 
         if (currentQty === 0) {
-          // Assume cancelOrderItem returns updated item data
-          const cancelledItem = await cancelOrderItem({
-            orderId,
-            itemId: item.itemId,
-            cancel: true,
-          });
-          updatedItems.push(cancelledItem);
+          await cancelOrderItem({ orderId, itemId: item.itemId, cancel: true });
         } else {
-          // Assume updateOrderItem returns updated item data
-          const updatedItem = await updateOrderItem({
+          await updateOrderItem({
             orderId,
             itemId: item.itemId,
             newQuantity: currentQty,
           });
-          updatedItems.push(updatedItem);
         }
       }
 
-      // Update the orders state with the updated items data
-      setOrders((prevOrders) =>
-        prevOrders.map((o) => {
-          if (o.orderId !== orderId) return o;
-
-          const newItems = o.items.map((it) => {
-            const updated = updatedItems.find((ui) => ui.itemId === it.itemId);
-            return updated ? { ...it, ...updated } : it;
-          });
-
-          return { ...o, items: newItems };
-        })
-      );
-
-      // Also update originalOrders with the new order state after edits
       setOriginalOrders((prev) =>
-        prev.map((o) =>
-          o.orderId === orderId ? structuredClone(orders.find((ord) => ord.orderId === orderId)) : o
-        )
+        prev.map((o) => (o.orderId === orderId ? structuredClone(order) : o))
       );
-
       setEditingOrders((prev) => ({ ...prev, [orderId]: false }));
       toast.success("Items Updated");
     } catch (err) {
@@ -222,18 +203,14 @@ const OrderCard = () => {
             const isReady = order.status?.toLowerCase() === "ready";
 
             return (
-              <div
-                key={order.orderId || idx}
-                className="col-12 col-sm-6 col-lg-3 mb-4"
-              >
+              <div key={order.orderId || idx} className="col-12 col-sm-6 col-lg-3 mb-4">
                 <div
-                  className={`border rounded shadow-sm p-3 h-100 d-flex flex-column justify-content-between position-relative ${
-                    isReady
-                      ? "bg-success bg-opacity-10"
-                      : order.status?.toLowerCase() === "completed"
+                  className={`border rounded shadow-sm p-3 h-100 d-flex flex-column justify-content-between position-relative ${isReady
+                    ? "bg-success bg-opacity-10"
+                    : order.status?.toLowerCase() === "completed"
                       ? "bg-primary bg-opacity-10"
                       : "bg-white"
-                  }`}
+                    }`}
                   style={{ minHeight: "350px" }}
                 >
                   {/* Header */}
@@ -243,8 +220,9 @@ const OrderCard = () => {
                         {order.tableNumber
                           ? `Table ${order.tableNumber}`
                           : order.customerName
-                          ? order.customerName
-                          : "Takeaway"}
+                            ? order.customerName
+                            : "Takeaway"}
+                            {console.log('order.customerName', order)}
                       </strong>
                       <div className="text-dark fw-medium small">
                         Order ID: #{order.orderId}
@@ -261,10 +239,7 @@ const OrderCard = () => {
                     )}
                   </div>
                   {/* Items */}
-                  <div
-                    className="mb-2 flex-grow-1 overflow-auto"
-                    style={{ maxHeight: "220px" }}
-                  >
+                  <div className="mb-2 flex-grow-1 overflow-auto" style={{ maxHeight: "220px" }}>
                     {visibleItems.map((item, i) => {
                       const isCancelled = item.isCancelled;
                       const lineStyle = isCancelled
@@ -272,32 +247,18 @@ const OrderCard = () => {
                         : {};
 
                       return (
-                        <div
-                          key={item.itemId || i}
-                          className="d-flex justify-content-between align-items-start small mb-2"
-                        >
+                        <div key={item.itemId || i} className="d-flex justify-content-between align-items-start small mb-2">
                           <div className="w-100">
-                            <div
-                              className="fw-semibold d-flex justify-content-between"
-                              style={lineStyle}
-                            >
+                            <div className="fw-semibold d-flex justify-content-between" style={lineStyle}>
                               {item.quantity}x {item.name || item.menuItem}
                               <span className="text-success fw-bold pe-2">
-                                ₹
-                                {(
-                                  (item.Price || item.price || 0) *
-                                  item.quantity
-                                ).toFixed(2)}
+                                ₹{((item.Price || item.price || 0) * item.quantity).toFixed(2)}
                               </span>
                             </div>
 
                             <div className="d-flex align-items-center gap-1 mt-1 flex-wrap">
                               <span
-                                className={`badge bg-${
-                                  item.foodType === "Jain"
-                                    ? "success"
-                                    : "primary"
-                                } mt-1`}
+                                className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"} mt-1`}
                               >
                                 {item.foodType}
                               </span>
@@ -307,9 +268,7 @@ const OrderCard = () => {
                                 </div>
                               )}
                               {isCancelled && (
-                                <span className="badge bg-warning text-dark">
-                                  Cancelled
-                                </span>
+                                <span className="badge bg-warning text-dark">Cancelled</span>
                               )}
                             </div>
 
@@ -318,13 +277,7 @@ const OrderCard = () => {
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
-                                  onClick={() =>
-                                    handleQuantityChange(
-                                      order.orderId,
-                                      item.itemId,
-                                      -1
-                                    )
-                                  }
+                                  onClick={() => handleQuantityChange(order.orderId, item.itemId, -1)}
                                 >
                                   −
                                 </Button>
@@ -332,13 +285,7 @@ const OrderCard = () => {
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
-                                  onClick={() =>
-                                    handleQuantityChange(
-                                      order.orderId,
-                                      item.itemId,
-                                      1
-                                    )
-                                  }
+                                  onClick={() => handleQuantityChange(order.orderId, item.itemId, 1)}
                                 >
                                   +
                                 </Button>
@@ -406,28 +353,16 @@ const OrderCard = () => {
                       }}
                     >
                       {!isEditing && (
-                        <Button
-                          size="sm"
-                          variant="outline-primary"
-                          onClick={() => toggleEdit(order.orderId)}
-                        >
+                        <Button size="sm" variant="outline-primary" onClick={() => toggleEdit(order.orderId)}>
                           Edit
                         </Button>
                       )}
                       {isEditing && (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline-success"
-                            onClick={() => doneEdit(order.orderId)}
-                          >
+                          <Button size="sm" variant="outline-success" onClick={() => doneEdit(order.orderId)}>
                             Done
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline-danger"
-                            onClick={() => cancelEdit(order.orderId)}
-                          >
+                          <Button size="sm" variant="outline-danger" onClick={() => cancelEdit(order.orderId)}>
                             Cancel
                           </Button>
                         </>
@@ -439,6 +374,8 @@ const OrderCard = () => {
             );
           })}
       </div>
+
+
     </Container>
   );
 };

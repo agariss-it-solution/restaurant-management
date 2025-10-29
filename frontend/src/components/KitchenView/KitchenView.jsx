@@ -32,7 +32,9 @@ const KitchenDisplay = () => {
     "pepsi",
     "coca cola",
     "limca",
-    "lemon"
+    "lemon",
+    "Red Bull",
+    "Can"
   ];
 
   const handleLogout = async () => {

@@ -102,7 +102,13 @@ const OrderCard = () => {
               "sprite",
               "water bottle",
               "mango",
-              "pepsi"
+              "maaza",
+              "pepsi",
+              "coca cola",
+              "limca",
+              "lemon",
+              "Red Bull",
+              "Can",
             ];
 
             // Filter items by excluding hidden terms in category or name

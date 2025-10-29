@@ -18,13 +18,15 @@ const OrderCard = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  // ✅ NEW: Pagination state
+  const [limit] = useState(12);
+  const [offset, setOffset] = useState(0);
+
   useEffect(() => {
     const loadOrders = async () => {
       try {
         const data = await getAllPaidBills();
         setOrders(data);
-
-
       } catch (err) {
         setError("Failed to fetch paid orders.");
       } finally {
@@ -40,7 +42,7 @@ const OrderCard = () => {
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
-    return orders.filter(order => {
+    return orders.filter((order) => {
       const orderDate = new Date(order.createdAt);
       return orderDate >= start && orderDate <= end;
     });
@@ -48,241 +50,271 @@ const OrderCard = () => {
 
   // Helper function to calculate cash amount for any payment type
   const getCashAmount = (order) => {
-    if (order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)) {
-      // Split payment - return the cash portion
+    if (
+      order.paymentAmounts &&
+      (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)
+    ) {
       return order.paymentAmounts.cash || 0;
     } else if (order.paymentMethod?.toLowerCase() === "cash") {
-      // Pure cash payment - return full amount
       return order.totalAmount || calculateOrderTotal(order);
     } else {
-      // Online or other payment methods - cash is 0
       return 0;
     }
   };
 
   // Helper function to calculate online amount for any payment type
   const getOnlineAmount = (order) => {
-    if (order.paymentAmounts && (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)) {
-      // Split payment - return the online portion
+    if (
+      order.paymentAmounts &&
+      (order.paymentAmounts.cash > 0 || order.paymentAmounts.online > 0)
+    ) {
       return order.paymentAmounts.online || 0;
     } else if (order.paymentMethod?.toLowerCase() === "online") {
-      // Pure online payment - return full amount
       return order.totalAmount || calculateOrderTotal(order);
     } else {
-      // Cash or other payment methods - online is 0
       return 0;
     }
   };
 
+  // ✅ Helper function — total after discount
+  const getFinalAmount = (order) => {
+    const total = order.totalAmount || calculateOrderTotal(order);
+    const discount =
+      order.discountValue || order.discountAmount || order.discount || 0;
+    return total - discount;
+  };
 
-  
-  // ============ UPDATED EXPORT FUNCTIONS (Replace only these) ============
+  // ✅ Excel Export
+  const exportExcel = () => {
+    const mergedOrders = mergeOrdersById(getFilteredOrders());
+    if (!mergedOrders.length) return alert("No orders to export!");
 
-// ✅ Helper function — total after discount
-const getFinalAmount = (order) => {
-  const total = order.totalAmount || calculateOrderTotal(order);
-  const discount = order.discountValue || order.discountAmount || order.discount || 0;
-  return total - discount;
-};
-
-// ✅ Excel Export
-const exportExcel = () => {
-  const mergedOrders = mergeOrdersById(getFilteredOrders());
-  if (!mergedOrders.length) return alert("No orders to export!");
-
-  const rows = [];
-
-  // Add header
-  rows.push({
-    "Bill ID": "Bill ID",
-    "Date": "Date",
-    "Payment Type": "Payment Type",
-    "Cash Amount (₹)": "Cash Amount (₹)",
-    "Online Amount (₹)": "Online Amount (₹)",
-    "Discount (₹)": "Discount (₹)",
-    "Total Amount (₹)": "Total Amount (₹)",
-    "Items Ordered": "Items Ordered",
-  });
-
-  // Add each order as a single row
-  mergedOrders.forEach((order) => {
-    const items = (order.items || [])
-      .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
-      .join(", ");
-
-    const cashAmount = getCashAmount(order);
-    const onlineAmount = getOnlineAmount(order);
-    const discount = order.discountValue || order.discountAmount || order.discount || 0;
-    const totalAfterDiscount = getFinalAmount(order);
-
-    let paymentType = order.paymentMethod || "Cash";
-    if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
-      paymentType = "Split";
-    }
+    const rows = [];
 
     rows.push({
-      "Bill ID": `${order.orderId}`,
-      "Date": order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A",
-      "Payment Type": paymentType,
-      "Cash Amount (₹)": cashAmount.toFixed(2),
-      "Online Amount (₹)": onlineAmount.toFixed(2),
-      "Discount (₹)": discount.toFixed(2),
-      "Total Amount (₹)": totalAfterDiscount.toFixed(2),
-      "Items Ordered": items,
+      "Bill ID": "Bill ID",
+      Date: "Date",
+      "Payment Type": "Payment Type",
+      "Cash Amount (₹)": "Cash Amount (₹)",
+      "Online Amount (₹)": "Online Amount (₹)",
+      "Discount (₹)": "Discount (₹)",
+      "Total Amount (₹)": "Total Amount (₹)",
+      "Items Ordered": "Items Ordered",
     });
-  });
 
-  // Calculate totals
-  const totalCash = mergedOrders.reduce((sum, o) => sum + getCashAmount(o), 0);
-  const totalOnline = mergedOrders.reduce((sum, o) => sum + getOnlineAmount(o), 0);
-  const totalDiscount = mergedOrders.reduce((sum, o) => sum + (o.discountValue || o.discountAmount || o.discount || 0), 0);
-  const totalFinal = mergedOrders.reduce((sum, o) => sum + getFinalAmount(o), 0);
+    mergedOrders.forEach((order) => {
+      const items = (order.items || [])
+        .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
+        .join(", ");
 
-  // Add total row
-  rows.push({
-    "Bill ID": "TOTAL",
-    "Date": "",
-    "Payment Type": "",
-    "Cash Amount (₹)": totalCash.toFixed(2),
-    "Online Amount (₹)": totalOnline.toFixed(2),
-    "Discount (₹)": totalDiscount.toFixed(2),
-    "Total Amount (₹)": totalFinal.toFixed(2),
-    "Items Ordered": "",
-  });
+      const cashAmount = getCashAmount(order);
+      const onlineAmount = getOnlineAmount(order);
+      const discount =
+        order.discountValue || order.discountAmount || order.discount || 0;
+      const totalAfterDiscount = getFinalAmount(order);
 
-  // Create Excel
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-
-  worksheet["!cols"] = [
-    { wch: 20 }, { wch: 18 }, { wch: 18 },
-    { wch: 20 }, { wch: 20 }, { wch: 20 },
-    { wch: 20 }, { wch: 50 },
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Billing Details");
-  XLSX.writeFile(workbook, `Billing_Details_${new Date().toLocaleDateString("en-GB")}.xlsx`);
-};
-
-// ✅ PDF Export
-const exportPDF = () => {
-  const mergedOrders = mergeOrdersById(getFilteredOrders());
-  if (!mergedOrders.length) return alert("No orders to export!");
-
-  const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Sheet 1 – Billing Details", 14, 15);
-
-  // Totals
-  const totalCash = mergedOrders.reduce((sum, o) => sum + getCashAmount(o), 0);
-  const totalOnline = mergedOrders.reduce((sum, o) => sum + getOnlineAmount(o), 0);
-  const totalDiscount = mergedOrders.reduce(
-    (sum, o) => sum + (o.discountValue || o.discountAmount || o.discount || 0),
-    0
-  );
-  const totalFinal = mergedOrders.reduce((sum, o) => sum + getFinalAmount(o), 0);
-
-  // Prepare rows
-  const tableData = mergedOrders.map((order) => {
-    // 🔹 make each item appear on a new line
-    const items = (order.items || [])
-      .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
-      .join("\n");
-
-    const cashAmount = getCashAmount(order);
-    const onlineAmount = getOnlineAmount(order);
-    const discount = order.discountValue || order.discountAmount || order.discount || 0;
-    const totalAfterDiscount = getFinalAmount(order);
-
-    let paymentType = order.paymentMethod || "Cash";
-    if (order.paymentMethod?.toLowerCase() === "split" && order.paymentAmounts) {
-      paymentType = "Split";
-    }
-
-    return [
-      order.orderId,
-      order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A",
-      paymentType,
-      cashAmount.toFixed(2),
-      onlineAmount.toFixed(2),
-      discount.toFixed(2),
-      totalAfterDiscount.toFixed(2),
-      items, // 🔹 multiline text
-    ];
-  });
-
-  // Add total row
-  tableData.push([
-    "TOTAL",
-    "",
-    "",
-    totalCash.toFixed(2),
-    totalOnline.toFixed(2),
-    totalDiscount.toFixed(2),
-    totalFinal.toFixed(2),
-    "",
-  ]);
-
-  // Render PDF table
-  autoTable(doc, {
-    head: [
-      [
-        "Bill ID",
-        "Date",
-        "Payment Type",
-        "Cash Amount ",
-        "Online Amount ",
-        "Discount ",
-        "Total Amount ",
-        "Items Ordered",
-      ],
-    ],
-    body: tableData,
-    startY: 25,
-    theme: "grid",
-    pageBreak: "auto",
-    headStyles: {
-      fillColor: [40, 40, 40],
-      textColor: 255,
-      fontStyle: "bold",
-      fontSize: 10,
-    },
-    bodyStyles: {
-      fontSize: 9,
-      textColor: [33, 33, 33],
-      valign: "top",
-      cellPadding: 2,
-      whiteSpace: "pre-line", // ✅ allows line breaks in cells
-    },
-    columnStyles: {
-      0: { cellWidth: 18 },
-      1: { cellWidth: 22 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 20 },
-      4: { cellWidth: 20 },
-      5: { cellWidth: 20 },
-      6: { cellWidth: 20 },
-      7: { cellWidth: 80, cellPadding: 3 }, // ✅ wrap for items
-    },
-    margin: { top: 25, right: 10, bottom: 20, left: 10 },
-    styles: {
-      overflow: "linebreak", // ✅ enables text wrapping
-      cellWidth: "wrap",
-    },
-    willDrawCell: (data) => {
-      if (data.row.index === tableData.length - 1 && data.row.section === "body") {
-        data.cell.styles.fillColor = [220, 220, 220];
-        data.cell.styles.fontStyle = "bold";
+      let paymentType = order.paymentMethod || "Cash";
+      if (
+        order.paymentMethod?.toLowerCase() === "split" &&
+        order.paymentAmounts
+      ) {
+        paymentType = "Split";
       }
-    },
-  });
 
-  doc.save(`Billing_Details_${new Date().toLocaleDateString("en-GB")}.pdf`);
-};
+      rows.push({
+        "Bill ID": `${order.orderId}`,
+        Date: order.createdAt
+          ? new Date(order.createdAt).toLocaleDateString("en-IN")
+          : "N/A",
+        "Payment Type": paymentType,
+        "Cash Amount (₹)": cashAmount.toFixed(2),
+        "Online Amount (₹)": onlineAmount.toFixed(2),
+        "Discount (₹)": discount.toFixed(2),
+        "Total Amount (₹)": totalAfterDiscount.toFixed(2),
+        "Items Ordered": items,
+      });
+    });
 
+    const totalCash = mergedOrders.reduce(
+      (sum, o) => sum + getCashAmount(o),
+      0
+    );
+    const totalOnline = mergedOrders.reduce(
+      (sum, o) => sum + getOnlineAmount(o),
+      0
+    );
+    const totalDiscount = mergedOrders.reduce(
+      (sum, o) =>
+        sum + (o.discountValue || o.discountAmount || o.discount || 0),
+      0
+    );
+    const totalFinal = mergedOrders.reduce(
+      (sum, o) => sum + getFinalAmount(o),
+      0
+    );
 
+    rows.push({
+      "Bill ID": "TOTAL",
+      Date: "",
+      "Payment Type": "",
+      "Cash Amount (₹)": totalCash.toFixed(2),
+      "Online Amount (₹)": totalOnline.toFixed(2),
+      "Discount (₹)": totalDiscount.toFixed(2),
+      "Total Amount (₹)": totalFinal.toFixed(2),
+      "Items Ordered": "",
+    });
 
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+
+    worksheet["!cols"] = [
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 50 },
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Billing Details");
+    XLSX.writeFile(
+      workbook,
+      `Billing_Details_${new Date().toLocaleDateString("en-GB")}.xlsx`
+    );
+  };
+
+  // ✅ PDF Export
+  const exportPDF = () => {
+    const mergedOrders = mergeOrdersById(getFilteredOrders());
+    if (!mergedOrders.length) return alert("No orders to export!");
+
+    const doc = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Sheet 1 – Billing Details", 14, 15);
+
+    const totalCash = mergedOrders.reduce(
+      (sum, o) => sum + getCashAmount(o),
+      0
+    );
+    const totalOnline = mergedOrders.reduce(
+      (sum, o) => sum + getOnlineAmount(o),
+      0
+    );
+    const totalDiscount = mergedOrders.reduce(
+      (sum, o) =>
+        sum + (o.discountValue || o.discountAmount || o.discount || 0),
+      0
+    );
+    const totalFinal = mergedOrders.reduce(
+      (sum, o) => sum + getFinalAmount(o),
+      0
+    );
+
+    const tableData = mergedOrders.map((order) => {
+      const items = (order.items || [])
+        .map((item) => `${item.quantity}x ${item.name || item.menuItem}`)
+        .join("");
+
+      const cashAmount = getCashAmount(order);
+      const onlineAmount = getOnlineAmount(order);
+      const discount =
+        order.discountValue || order.discountAmount || order.discount || 0;
+      const totalAfterDiscount = getFinalAmount(order);
+
+      let paymentType = order.paymentMethod || "Cash";
+      if (
+        order.paymentMethod?.toLowerCase() === "split" &&
+        order.paymentAmounts
+      ) {
+        paymentType = "Split";
+      }
+
+      return [
+        order.orderId,
+        order.createdAt
+          ? new Date(order.createdAt).toLocaleDateString("en-IN")
+          : "N/A",
+        paymentType,
+        cashAmount.toFixed(2),
+        onlineAmount.toFixed(2),
+        discount.toFixed(2),
+        totalAfterDiscount.toFixed(2),
+        items,
+      ];
+    });
+
+    tableData.push([
+      "TOTAL",
+      "",
+      "",
+      totalCash.toFixed(2),
+      totalOnline.toFixed(2),
+      totalDiscount.toFixed(2),
+      totalFinal.toFixed(2),
+      "",
+    ]);
+
+    autoTable(doc, {
+      head: [
+        [
+          "Bill ID",
+          "Date",
+          "Payment Type",
+          "Cash Amount ",
+          "Online Amount ",
+          "Discount ",
+          "Total Amount ",
+          "Items Ordered",
+        ],
+      ],
+      body: tableData,
+      startY: 25,
+      theme: "grid",
+      pageBreak: "auto",
+      headStyles: {
+        fillColor: [40, 40, 40],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 10,
+      },
+      bodyStyles: {
+        fontSize: 9,
+        textColor: [33, 33, 33],
+        valign: "top",
+        cellPadding: 2,
+        whiteSpace: "pre-line",
+      },
+      columnStyles: {
+        0: { cellWidth: 18 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 20 },
+        5: { cellWidth: 20 },
+        6: { cellWidth: 20 },
+        7: { cellWidth: 80, cellPadding: 3 },
+      },
+      margin: { top: 25, right: 10, bottom: 20, left: 10 },
+      styles: {
+        overflow: "linebreak",
+        cellWidth: "wrap",
+      },
+      willDrawCell: (data) => {
+        if (
+          data.row.index === tableData.length - 1 &&
+          data.row.section === "body"
+        ) {
+          data.cell.styles.fillColor = [220, 220, 220];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+
+    doc.save(`Billing_Details_${new Date().toLocaleDateString("en-GB")}.pdf`);
+  };
 
   const handleSaveDiscount = async (bill) => {
     try {
@@ -302,14 +334,16 @@ const exportPDF = () => {
         totalAmount,
       };
 
-      console.log("Updating bill with ID:", bill.orderId); // ✅ Correct ID
+      console.log("Updating bill with ID:", bill.orderId);
       console.log("Payload being sent:", payload);
 
-      const updated = await updateBill(bill.orderId, payload); // ✅ Use bill ID
+      const updated = await updateBill(bill.orderId, payload);
 
       setOrders((prev) =>
         prev.map((o) =>
-          o.orderId === bill.orderId ? { ...o, ...updated, isEditing: false } : o
+          o.orderId === bill.orderId
+            ? { ...o, ...updated, isEditing: false }
+            : o
         )
       );
 
@@ -340,7 +374,7 @@ const exportPDF = () => {
         const blob = await response.blob();
         const reader = new FileReader();
         reader.readAsDataURL(blob);
-        restaurant.logo = await new Promise(resolve => {
+        restaurant.logo = await new Promise((resolve) => {
           reader.onloadend = () => resolve(reader.result);
         });
       }
@@ -348,19 +382,28 @@ const exportPDF = () => {
       console.error("Failed to fetch restaurant settings:", err);
     }
 
-    const itemsRows = (order.items || []).map(i => `
+    const itemsRows = (order.items || [])
+      .map(
+        (i) => `
     <tr>
       <td>${i.name || i.menuItem}</td>
       <td style="text-align:center;">${i.quantity}</td>
-      <td style="text-align:right;">₹${((i.Price || i.price) * i.quantity).toFixed(2)}</td>
+      <td style="text-align:right;">₹${(
+        (i.Price || i.price) * i.quantity
+      ).toFixed(2)}</td>
     </tr>
-  `).join("");
+  `
+      )
+      .join("");
 
-    const subtotal = order.items?.reduce((sum, i) => sum + ((i.Price || i.price) * i.quantity), 0) || 0;
+    const subtotal =
+      order.items?.reduce(
+        (sum, i) => sum + (i.Price || i.price) * i.quantity,
+        0
+      ) || 0;
     const discountValue = order.discountValue || 0;
     const finalTotal = subtotal - discountValue;
 
-    // Display either customer name (for parcel/delivery) or table number (for dine-in)
     const displayInfo = order.customerName
       ? `<strong>Customer Name:</strong> ${order.customerName}<br>`
       : `<strong>Table:</strong> ${order.tableNumber || order.table}<br>`;
@@ -368,7 +411,11 @@ const exportPDF = () => {
     const contentHTML = `
     <div style="max-width:400px; margin:auto; font-family: 'Courier New', monospace;">
       <div style="text-align:center; margin-bottom:10px;">
-        ${restaurant.logo ? `<img src="${restaurant.logo}" style="width:80px; height:auto; margin-bottom:5px;"><br>` : ""}
+        ${
+          restaurant.logo
+            ? `<img src="${restaurant.logo}" style="width:80px; height:auto; margin-bottom:5px;"><br>`
+            : ""
+        }
         <h2>${restaurant.name}</h2>
         <small>${restaurant.address}</small><br>
         <small>Phone: ${restaurant.phone}</small>
@@ -377,7 +424,9 @@ const exportPDF = () => {
       <div style="margin-bottom:10px;">
         ${displayInfo}
         <strong>Order ID:</strong> #${order.orderId}<br>
-        <strong>Time:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}<br>
+        <strong>Time:</strong> ${
+          order.createdAt ? new Date(order.createdAt).toLocaleString() : ""
+        }<br>
       </div>
       <table border="1" style="width:100%; border-collapse:collapse; margin-bottom:10px;">
         <thead>
@@ -396,12 +445,16 @@ const exportPDF = () => {
         <strong>Subtotal:</strong> 
         <strong>₹${subtotal.toFixed(2)}</strong>
       </div>
-      ${discountValue > 0 ? `
+      ${
+        discountValue > 0
+          ? `
         <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc3545;">
           <span>Discount:</span> 
           <span>- ₹${discountValue.toFixed(2)}</span>
         </div>
-      ` : ''}
+      `
+          : ""
+      }
       <hr style="border-top:2px solid #000;">
       <div style="display:flex; justify-content:space-between; font-size:18px; margin-bottom:10px;">
         <strong>Total:</strong> 
@@ -414,7 +467,6 @@ const exportPDF = () => {
     </div>
   `;
 
-    // Create or get the print iframe
     let iframe = document.getElementById("print-frame");
     if (!iframe) {
       iframe = document.createElement("iframe");
@@ -477,14 +529,11 @@ const exportPDF = () => {
     doc.close();
   };
 
-
   const calculateOrderTotal = (order) => {
     if (!order) return 0;
-    // If Price exists and is a number-like value, use it
     if (order.Price != null && !isNaN(Number(order.Price))) {
       return Number(order.Price);
     }
-    // Otherwise compute from items
     return (order.items || []).reduce((sum, item) => {
       const price = Number(item.Price ?? item.price) || 0;
       const qty = Number(item.quantity) || 0;
@@ -492,14 +541,6 @@ const exportPDF = () => {
     }, 0);
   };
 
-  if (loading) return <div className="text-center py-5">Loading...</div>;
-  if (error) return <div className="text-danger py-5">{error}</div>;
-  if (orders.length === 0)
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
-        <div className="text-dark fw-medium">No orders found.</div>
-      </div>
-    );
   // Merge orders that share the same orderId
   const mergeOrdersById = (orders) => {
     const merged = {};
@@ -508,13 +549,12 @@ const exportPDF = () => {
       if (!merged[order.orderId]) {
         merged[order.orderId] = { ...order, items: [...(order.items || [])] };
       } else {
-        // append items
         merged[order.orderId].items = [
           ...(merged[order.orderId].items || []),
           ...(order.items || []),
         ];
-        // optionally keep latest status, paymentMethod etc:
-        merged[order.orderId].status = order.status ?? merged[order.orderId].status;
+        merged[order.orderId].status =
+          order.status ?? merged[order.orderId].status;
       }
     });
 
@@ -533,17 +573,33 @@ const exportPDF = () => {
 
   const filteredOrders = mergeOrdersById(getFilteredOrders());
 
+  // ✅ NEW: Calculate visible orders and whether more exist
+  const visibleOrders = [...filteredOrders]
+    .slice()
+    .reverse()
+    .slice(0, offset + limit);
+
+  const hasMore = offset + limit < filteredOrders.length;
+
+  if (loading) return <div className="text-center py-5">Loading...</div>;
+  if (error) return <div className="text-danger py-5">{error}</div>;
+  if (orders.length === 0)
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "60vh" }}
+      >
+        <div className="text-dark fw-medium">No orders found.</div>
+      </div>
+    );
+
   return (
     <div className="container mt-4">
-
       <div className="d-flex flex-column flex-md-row flex-wrap gap-2 justify-content-between align-items-start mb-3">
-
         <h4 className="text-capitalize mb-2 mb-md-0">Paid Bill History</h4>
 
-        <div className="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-end   w-md-auto">
-
+        <div className="d-flex flex-column flex-md-row gap-2 align-items-start align-items-md-end w-md-auto">
           <div className="d-flex flex-column flex-md-row gap-3 w-100 w-md-auto">
-
             <div className="d-flex flex-column flex-grow-1">
               <label className="small mb-0 fw-bold">Start Date</label>
               <DatePicker
@@ -555,9 +611,7 @@ const exportPDF = () => {
                 className="form-control form-control-sm"
                 placeholderText="dd-mm-yyyy"
               />
-
             </div>
-
             <div className="d-flex flex-column flex-grow-1">
               <label className="small mb-0 fw-bold">End Date</label>
               <DatePicker
@@ -571,7 +625,6 @@ const exportPDF = () => {
             </div>
           </div>
 
-          {/* Export Dropdown */}
           <div className="mt-2 mt-md-0">
             <DropdownButton
               id="export-dropdown"
@@ -583,14 +636,12 @@ const exportPDF = () => {
               <Dropdown.Item onClick={exportPDF}>Export PDF</Dropdown.Item>
             </DropdownButton>
           </div>
-
         </div>
       </div>
 
-      {/* Orders grid */}
+      {/* Orders Grid */}
       <div className="row">
-        {[...filteredOrders].slice().reverse().map((order, index) => {
-
+        {visibleOrders.map((order, index) => {
           const isExpanded = expandedOrders[order.orderId] || false;
           const items = order.items || [];
           const visibleItems = isExpanded ? items : items.slice(0, 3);
@@ -600,9 +651,11 @@ const exportPDF = () => {
           const onlineAmount = getOnlineAmount(order);
 
           return (
-            <div key={index} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+            <div
+              key={order.orderId}
+              className="col-12 col-sm-6 col-md-4 col-lg-3 mb-4"
+            >
               <div className="border rounded shadow-sm p-3 bg-white h-100 d-flex flex-column justify-content-between">
-
                 {/* Card Header */}
                 <div className="mb-2">
                   <div className="d-flex justify-content-between align-items-center flex-wrap">
@@ -611,7 +664,6 @@ const exportPDF = () => {
                         ? order.customerName
                         : `Table ${order.tableNumber || order.table}`}
                     </strong>
-
                     <div className="d-flex align-items-center gap-3">
                       <Badge
                         bg="success"
@@ -631,13 +683,14 @@ const exportPDF = () => {
                   <div className="text-dark fw-medium small mt-1">
                     Order ID: #{order.orderId}
                   </div>
-
-                  {/* Created At time */}
                   <div className="text-muted small">
-                    {order.createdAt ? new Date(order.createdAt).toLocaleString() : "N/A"}
+                    {order.createdAt
+                      ? new Date(order.createdAt).toLocaleString()
+                      : "N/A"}
                   </div>
                 </div>
 
+               
                 {/* Items */}
                 <div className="flex-grow-1">
                   {visibleItems.map((item, i) => (
@@ -645,13 +698,14 @@ const exportPDF = () => {
                       key={i}
                       className="d-flex justify-content-between align-items-start small mb-2"
                     >
-
                       <div>
                         <div className="fw-semibold">
                           {item.quantity}x {item.name || item.menuItem}
                         </div>
                         {item.foodType && (
-                          <span className="badge bg-primary">{item.foodType}</span>
+                          <span className="badge bg-primary">
+                            {item.foodType}
+                          </span>
                         )}
                       </div>
                       <div className="fw-semibold text-success">
@@ -660,6 +714,7 @@ const exportPDF = () => {
                     </div>
                   ))}
 
+                  {/* Show More */}
                   {hiddenCount > 0 && !isExpanded && (
                     <div
                       className="text-primary small fw-semibold mt-1"
@@ -675,6 +730,7 @@ const exportPDF = () => {
                     </div>
                   )}
 
+                  {/* Show Less (Only when expanded AND more than 3 items) */}
                   {isExpanded && items.length > 3 && (
                     <div
                       className="text-primary small fw-semibold mt-1"
@@ -686,7 +742,7 @@ const exportPDF = () => {
                         }))
                       }
                     >
-                      Show less
+                      Show Less
                     </div>
                   )}
                 </div>
@@ -696,7 +752,10 @@ const exportPDF = () => {
                   <div className="d-flex justify-content-between fw-bold">
                     <span>Total:</span>
                     <span className="text-success">
-                      ₹{(order.totalAmount || calculateOrderTotal(order)).toFixed(2)}
+                      ₹
+                      {(
+                        order.totalAmount || calculateOrderTotal(order)
+                      ).toFixed(2)}
                     </span>
                   </div>
 
@@ -710,41 +769,59 @@ const exportPDF = () => {
                   <div className="d-flex justify-content-between fw-bold border-top pt-2 mt-1 mb-2">
                     <span>Final:</span>
                     <span className="text-primary">
-                      ₹{((order.totalAmount || calculateOrderTotal(order)) - (order.discountValue || 0)).toFixed(2)}
+                      ₹
+                      {(
+                        (order.totalAmount || calculateOrderTotal(order)) -
+                        (order.discountValue || 0)
+                      ).toFixed(2)}
                     </span>
                   </div>
 
-                  {/* Cash Payment Breakdown Section */}
-                  {order.paymentAmounts && (order.paymentAmounts.cash > 0 && order.paymentAmounts.online > 0) ? (() => {
-                    const total = order.paymentAmounts.cash + order.paymentAmounts.online;
-                    const discount = order.discountValue || 0;
+                  {order.paymentAmounts &&
+                  order.paymentAmounts.cash > 0 &&
+                  order.paymentAmounts.online > 0 ? (
+                    (() => {
+                      const total =
+                        order.paymentAmounts.cash + order.paymentAmounts.online;
+                      const discount = order.discountValue || 0;
+                      const cashShare = order.paymentAmounts.cash / total;
+                      const onlineShare = order.paymentAmounts.online / total;
+                      const cashAfterDiscount =
+                        order.paymentAmounts.cash - discount * cashShare;
+                      const onlineAfterDiscount =
+                        order.paymentAmounts.online - discount * onlineShare;
 
-                    const cashShare = order.paymentAmounts.cash / total;
-                    const onlineShare = order.paymentAmounts.online / total;
-
-                    const cashAfterDiscount = order.paymentAmounts.cash - (discount * cashShare);
-                    const onlineAfterDiscount = order.paymentAmounts.online - (discount * onlineShare);
-
-                    return (
-                      <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
-                        <div className="fw-semibold mb-2 text-dark">Split Payment </div>
-                        <div className="d-flex justify-content-between mb-1">
-                          <span>💵 Cash:</span>
-                          <span className="fw-semibold text-warning">₹{cashAfterDiscount.toFixed(2)}</span>
+                      return (
+                        <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
+                          <div className="fw-semibold mb-2 text-dark">
+                            Split Payment{" "}
+                          </div>
+                          <div className="d-flex justify-content-between mb-1">
+                            <span>💵 Cash:</span>
+                            <span className="fw-semibold text-warning">
+                              ₹{cashAfterDiscount.toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span>💳 Online:</span>
+                            <span className="fw-semibold text-info">
+                              ₹{onlineAfterDiscount.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="d-flex justify-content-between">
-                          <span>💳 Online:</span>
-                          <span className="fw-semibold text-info">₹{onlineAfterDiscount.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    );
-                  })() : order.paymentMethod?.toLowerCase() === "cash" ? (
+                      );
+                    })()
+                  ) : order.paymentMethod?.toLowerCase() === "cash" ? (
                     <div className="bg-light p-2 rounded mb-2 small border-start border-4 border-warning">
                       <div className="fw-semibold mb-2 text-dark">Payment </div>
                       <div className="d-flex justify-content-between">
                         <span>💵 Cash:</span>
                         <span className="fw-semibold text-warning">
-                          ₹{((calculateOrderTotal(order) - (order.discountValue || 0)).toFixed(2))}
+                          ₹
+                          {(
+                            calculateOrderTotal(order) -
+                            (order.discountValue || 0)
+                          ).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -754,14 +831,16 @@ const exportPDF = () => {
                       <div className="d-flex justify-content-between">
                         <span>💳 Online:</span>
                         <span className="fw-semibold text-info">
-                          ₹{((calculateOrderTotal(order) - (order.discountValue || 0)).toFixed(2))}
+                          ₹
+                          {(
+                            calculateOrderTotal(order) -
+                            (order.discountValue || 0)
+                          ).toFixed(2)}
                         </span>
                       </div>
                     </div>
                   )}
 
-
-                  {/* Edit Discount Section */}
                   {!order.isEditing ? (
                     <Button
                       variant="outline-secondary"
@@ -788,7 +867,10 @@ const exportPDF = () => {
                           setOrders((prev) =>
                             prev.map((o) =>
                               o._id === order._id
-                                ? { ...o, discountValue: Number(e.target.value) }
+                                ? {
+                                    ...o,
+                                    discountValue: Number(e.target.value),
+                                  }
                                 : o
                             )
                           )
@@ -810,7 +892,9 @@ const exportPDF = () => {
                           onClick={() =>
                             setOrders((prev) =>
                               prev.map((o) =>
-                                o._id === order._id ? { ...o, isEditing: false } : o
+                                o._id === order._id
+                                  ? { ...o, isEditing: false }
+                                  : o
                               )
                             )
                           }
@@ -821,14 +905,25 @@ const exportPDF = () => {
                     </div>
                   )}
                 </div>
-
               </div>
-
             </div>
           );
         })}
-      </div>
 
+        {/* Show More Button */}
+        {hasMore && (
+          <div className="py-2 col-12 d-flex justify-content-center mb-2">
+            <Button
+              variant="outline-primary"
+              className="py-2"
+              size="sm"
+              onClick={() => setOffset((prev) => prev + limit)}
+            >
+              Show More ({filteredOrders.length - offset - limit} more)
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

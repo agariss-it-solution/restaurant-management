@@ -31,16 +31,23 @@ useEffect(() => {
       // Group orders by tableNumber / customerName
       const groupedOrdersMap = new Map();
 
-      normalizedOrders.forEach((order) => {
-        const key = order.tableNumber || order.customerName || "Takeaway";
+normalizedOrders.forEach((order) => {
+  // Use orderId or unique identifier for part of the key
+  const isTakeaway = !order.tableNumber;
 
-        if (!groupedOrdersMap.has(key)) {
-          groupedOrdersMap.set(key, { ...order, items: [...order.items] });
-        } else {
-          const existing = groupedOrdersMap.get(key);
-          existing.items = [...existing.items, ...order.items];
-        }
-      });
+  // If it’s takeaway, use customerName + orderId to avoid conflict
+  // If it’s table order, use tableNumber
+  const key = isTakeaway
+    ? `${order.customerName || "Takeaway"}_${order.orderId}`
+    : order.tableNumber;
+
+  if (!groupedOrdersMap.has(key)) {
+    groupedOrdersMap.set(key, { ...order, items: [...order.items] });
+  } else {
+    const existing = groupedOrdersMap.get(key);
+    existing.items = [...existing.items, ...order.items];
+  }
+});
 
       const groupedOrders = Array.from(groupedOrdersMap.values());
 
