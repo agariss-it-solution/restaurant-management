@@ -26,15 +26,15 @@ function MenuPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [foodType, setFoodType] = useState("Regular");
   const [instructions, setInstructions] = useState("");
-   const [showOrderList, setShowOrderList] = useState(false)
+  const [showOrderList, setShowOrderList] = useState(false);
 
-  // Search term state
   const [searchTerm, setSearchTerm] = useState("");
 
   const currentCategory = menuData.find((cat) => cat.category === category);
   const menuItemsRef = useRef(null);
   const orderSummaryRef = useRef(null);
 
+  // 🔹 Load menu + table data
   useEffect(() => {
     const loadMenuAndTable = async () => {
       try {
@@ -59,16 +59,129 @@ function MenuPage() {
     loadMenuAndTable();
   }, [tableId]);
 
+  // 🔹 Helper function to print KOT
+const printKOT = async (tableNumber, order) => {
+  const restaurant = {
+    name: "MK's Food",
+    address: "123 Main Street, City",
+    phone: "9876543210",
+  };
+
+  const kotHTML = `
+    <div style="
+      font-family: 'Courier New', monospace;
+      width: 3in;
+      height: 5in;
+      margin: 0 auto;
+      padding: 6px;
+      text-align: center;
+      line-height: 1.3;
+      box-sizing: border-box;
+    ">
+      <h2 style="margin:0; font-size:14px;">${restaurant.name}</h2>
+      <h3 style="margin:2px 0; font-size:12px;">KITCHEN ORDER TICKET</h3>
+      <hr style="border-top:1px dashed #000; margin:3px 0;" />
+
+      <div style="font-size:11px; margin-bottom:3px;">
+        <strong>Table:</strong> ${tableNumber}<br />
+        <strong>Date:</strong> ${new Date().toLocaleString()}
+      </div>
+
+      <hr style="border-top:1px dashed #000; margin:3px 0;" />
+
+      <table style="
+        width: 95%;
+        margin: 0 auto;
+        font-size:11px;
+        border-collapse: collapse;
+      ">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Item</th>
+            <th style="text-align:right;">Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${order.map(item => `
+            <tr>
+              <td style="text-align:left;">
+                <strong>${item.name}</strong><br />
+                <span style="font-size:10px;">(${item.foodType || "Regular"})</span><br />
+                ${item.instructions ? `<em style="font-size:10px;">${item.instructions}</em>` : ""}
+              </td>
+              <td style="text-align:right;">${item.qty}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+
+      <hr style="border-top:1px dashed #000; margin:3px 0;" />
+      <div style="font-size:10px; margin-top:4px;">Printed by POS System</div>
+    </div>
+  `;
+
+  // Hidden iframe for direct print
+  let iframe = document.getElementById("print-kot-frame");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "print-kot-frame";
+    iframe.style.position = "fixed";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+  }
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`
+    <html>
+      <head>
+        <title>KOT</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          @page {
+            size: 3in 5in;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            width: 3in;
+            height: 5in;
+            font-family: 'Courier New', monospace;
+            -webkit-print-color-adjust: exact;
+            overflow: hidden;
+          }
+          hr { border: none; border-top: 1px dashed #000; }
+          table { width: 95%; margin: 0 auto; }
+          th, td { padding: 2px 0; }
+        </style>
+      </head>
+      <body>
+        ${kotHTML}
+        <script>
+          window.onload = () => {
+            window.focus();
+            window.print();
+            setTimeout(() => window.close(), 200);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  doc.close();
+};
+
+
+
+
   const handleCategoryClick = (cat) => {
     setCategory(cat.category);
-    setSearchTerm(""); // reset search on category change
-
+    setSearchTerm(""); // reset search
     setTimeout(() => {
       if (menuItemsRef.current) {
-        menuItemsRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+        menuItemsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 150);
   };
@@ -80,42 +193,26 @@ function MenuPage() {
     setShowModal(true);
   };
 
- const handleConfirmAdd = () => {
-  if (selectedItem) {
-    setOrder((prev) => {
-      const existingIndex = prev.findIndex((item) => item._id === selectedItem._id && item.foodType === foodType && item.instructions === instructions);
-
-      if (existingIndex !== -1) {
-        // Item already exists, increase qty
-        const updated = [...prev];
-        updated[existingIndex].qty += 0;
-        return updated;
-      } else {
-        // New item, add to order
-        const newItem = {
-          _id: selectedItem._id,
-          name: selectedItem.name,
-          Price: selectedItem.Price,
-          foodType,
-          instructions,
-          qty: 1,
-        };
-        return [...prev, newItem];
-      }
-    });
-  }
-  setShowModal(false);
-
-  setTimeout(() => {
-    if (orderSummaryRef.current) {
-      orderSummaryRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
+  const handleConfirmAdd = () => {
+    if (selectedItem) {
+      setOrder((prev) => {
+        const index = prev.findIndex((o) => o._id === selectedItem._id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = {
+            ...updated[index],
+            qty: updated[index].qty + 1,
+            foodType,
+            instructions,
+          };
+          return updated;
+        } else {
+          return [...prev, { ...selectedItem, qty: 1, foodType, instructions }];
+        }
       });
     }
-  }, 100);
-};
-
+    setShowModal(false);
+  };
 
   const handleSubmitOrder = async () => {
     if (order.length === 0) {
@@ -137,6 +234,10 @@ function MenuPage() {
       await submitOrder(orderData);
       await updateTable(tableId, { status: "Occupied" });
       toast.success("All items added to order");
+
+      // 🔹 Print KOT after submitting order
+      printKOT(tableNumber, order);
+
       setOrder([]);
       navigate("/waiter/orders");
     } catch (err) {
@@ -153,23 +254,21 @@ function MenuPage() {
     );
   }
 
-  // 🔎 Filtering logic
+  // 🔹 Filter menu items by search term or category
   let filteredItems = [];
   if (searchTerm.trim()) {
-  
     filteredItems = menuData
       .flatMap((cat) => cat.items || [])
       .filter((item) =>
         item.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
   } else {
-    // Only show selected category items
     filteredItems = currentCategory?.items || [];
   }
 
   return (
     <div className="py-4">
- <div className="row">
+      <div className="row">
         {/* LEFT: Menu Section */}
         <div className="col-lg-9" style={{ maxHeight: "80vh", overflowY: "auto" }}>
           <h4 className="fw-bold">Menu - Table {tableNumber}</h4>
@@ -226,7 +325,8 @@ function MenuPage() {
 
             {filteredItems.map((item) => {
               const orderItemIndex = order.findIndex((o) => o._id === item._id);
-              const orderItem = orderItemIndex !== -1 ? order[orderItemIndex] : { qty: 0 };
+              const orderItem =
+                orderItemIndex !== -1 ? order[orderItemIndex] : { qty: 0 };
 
               return (
                 <div key={item._id} className="col-12 col-sm-6 col-lg-4">
@@ -234,50 +334,49 @@ function MenuPage() {
                     <div className="card-body d-flex flex-column">
                       <h5 className="card-title">{item.name}</h5>
 
-                  <div className="mt-auto d-flex justify-content-between align-items-center w-100">
-  <strong className="text-success">₹{item.Price}</strong>
+                      <div className="mt-auto d-flex justify-content-between align-items-center w-100">
+                        <strong className="text-success">₹{item.Price}</strong>
 
-  <div className="d-flex align-items-center gap-2">
-    {orderItem.qty > 0 && (
-      <div className="d-flex align-items-center gap-2">
-        <button
-          className="btn btn-outline-secondary btn-sm py-0 px-2"
-          onClick={() => {
-            const updated = [...order];
-            if (updated[orderItemIndex].qty > 1)
-              updated[orderItemIndex].qty -= 1;
-            else updated.splice(orderItemIndex, 1);
-            setOrder(updated);
-          }}
-        >
-          −
-        </button>
+                        <div className="d-flex align-items-center gap-2">
+                          {orderItem.qty > 0 && (
+                            <div className="d-flex align-items-center gap-2">
+                              <button
+                                className="btn btn-outline-secondary btn-sm py-0 px-2"
+                                onClick={() => {
+                                  const updated = [...order];
+                                  if (updated[orderItemIndex].qty > 1)
+                                    updated[orderItemIndex].qty -= 1;
+                                  else updated.splice(orderItemIndex, 1);
+                                  setOrder(updated);
+                                }}
+                              >
+                                −
+                              </button>
 
-        <span className="fw-bold">{orderItem.qty}</span>
+                              <span className="fw-bold">{orderItem.qty}</span>
 
-        <button
-          className="btn btn-outline-secondary btn-sm py-0 px-2"
-          onClick={() => {
-            const updated = [...order];
-            updated[orderItemIndex].qty += 1;
-            setOrder(updated);
-          }}
-        >
-          +
-        </button>
-      </div>
-    )}
+                              <button
+                                className="btn btn-outline-secondary btn-sm py-0 px-2"
+                                onClick={() => {
+                                  const updated = [...order];
+                                  updated[orderItemIndex].qty += 1;
+                                  setOrder(updated);
+                                }}
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
 
-    <Button
-      variant="success"
-      size="sm"
-      onClick={() => handleAddItem(item)}
-    >
-      + Add
-    </Button>
-  </div>
-</div>
-
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => handleAddItem(item)}
+                          >
+                            + Add
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -286,7 +385,7 @@ function MenuPage() {
           </div>
         </div>
 
-        {/* RIGHT: Fixed Order Summary */}
+        {/* RIGHT: Order Summary */}
         <div className="col-lg-3 d-none d-lg-block">
           {order.length > 0 && (
             <div
@@ -295,9 +394,8 @@ function MenuPage() {
                 position: "fixed",
                 top: "20px",
                 right: "20px",
-                maxHeight: "80vh",
+                width: "auto",
                 backgroundColor: "white",
-                overflow: "hidden",
                 border: "1px solid #dee2e6",
                 zIndex: 1050,
               }}
@@ -307,84 +405,81 @@ function MenuPage() {
                 style={{ overflowY: "auto", maxHeight: "calc(80vh - 80px)" }}
               >
                 <h6 className="fw-bold">Current Order</h6>
-<ul className="list-group list-group-flush">
-  {order.map((item, idx) => (
-    <li key={idx} className="list-group-item small border rounded mb-2">
-      <div className="d-flex justify-content-between align-items-start">
-        <div className="flex-grow-1">
-          <div className="fw-semibold">{item.name}</div>
-          <span
-            className={`badge bg-${
-              item.foodType === "Jain" ? "success" : "primary"
-            } mt-1`}
-          >
-            {item.foodType}
-          </span>
-          {item.instructions && (
-            <div className="text-dark fw-medium small fst-italic mt-1 text-break">
-              "{item.instructions}"
-            </div>
-          )}
-        </div>
-        <div className="text-success fw-bold">
-          ₹{(item.Price * item.qty).toFixed(2)}
-        </div>
-      </div>
+                <ul className="list-group list-group-flush">
+                  {order.map((item, idx) => (
+                    <li key={idx} className="list-group-item small border rounded mb-2">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div className="flex-grow-1">
+                          <div className="fw-semibold">{item.name}</div>
+                          <span
+                            className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"
+                              } mt-1`}
+                          >
+                            {item.foodType}
+                          </span>
+                          {item.instructions && (
+                            <div className="text-dark fw-medium small fst-italic mt-1 text-break">
+                              "{item.instructions}"
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-success fw-bold">
+                          ₹{(item.Price * item.qty).toFixed(2)}
+                        </div>
+                      </div>
 
-      {/* Quantity controls and remove aligned on opposite sides */}
-      <div className="d-flex align-items-center mt-2 justify-content-between">
-        <div className="d-flex align-items-center gap-2">
-          <button
-            className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
-            onClick={() => {
-              const updated = [...order];
-              if (updated[idx].qty > 1) updated[idx].qty -= 1;
-              else updated.splice(idx, 1);
-              setOrder(updated);
-            }}
-          >
-            −
-          </button>
+                      <div className="d-flex align-items-center mt-2 justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          <button
+                            className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
+                            onClick={() => {
+                              const updated = [...order];
+                              if (updated[idx].qty > 1) updated[idx].qty -= 1;
+                              else updated.splice(idx, 1);
+                              setOrder(updated);
+                            }}
+                          >
+                            −
+                          </button>
 
-          <span>{item.qty}</span>
+                          <span>{item.qty}</span>
 
-          <button
-            className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
-            onClick={() => {
-              const updated = [...order];
-              updated[idx].qty += 1;
-              setOrder(updated);
-            }}
-          >
-            +
-          </button>
-        </div>
+                          <button
+                            className="btn btn-outline-secondary fw-bold btn-sm px-2 py-0"
+                            onClick={() => {
+                              const updated = [...order];
+                              updated[idx].qty += 1;
+                              setOrder(updated);
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
 
-        {/* remove button aligned to the right end */}
-        <button
-          className="btn btn-link text-danger p-0 small"
-          onClick={() => setOrder(order.filter((_, i) => i !== idx))}
-        >
-          remove
-        </button>
-      </div>
-    </li>
-  ))}
-</ul>
-
-
+                        <button
+                          className="btn btn-link text-danger p-0 small"
+                          onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+                        >
+                          remove
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              {/* Footer */}
               <div className="mt-3 order-summary-footer">
                 <div className="d-flex justify-content-between fw-bold mb-2">
                   <span>Total:</span>
                   <span className="text-success">
-                    ₹{order.reduce((sum, item) => sum + item.Price * item.qty, 0).toFixed(2)}
+                    ₹
+                    {order
+                      .reduce((sum, item) => sum + item.Price * item.qty, 0)
+                      .toFixed(2)}
                   </span>
                 </div>
                 <button className="btn btn-success w-100" onClick={handleSubmitOrder}>
-                  Send to Kitchen
+                 Send To KOT
                 </button>
               </div>
             </div>
@@ -400,7 +495,10 @@ function MenuPage() {
               onClick={() => setShowOrderList((prev) => !prev)}
             >
               <div className="fw-bold">
-                Total: ₹{order.reduce((sum, item) => sum + item.Price * item.qty, 0).toFixed(2)}
+                Total: ₹
+                {order
+                  .reduce((sum, item) => sum + item.Price * item.qty, 0)
+                  .toFixed(2)}
               </div>
               <button
                 className="btn btn-success"
@@ -409,7 +507,7 @@ function MenuPage() {
                   handleSubmitOrder();
                 }}
               >
-                Send to Kitchen
+              Send To KOT
               </button>
             </div>
 
@@ -428,69 +526,73 @@ function MenuPage() {
                 }}
               >
                 <h6 className="fw-semibold text-center py-2">Current Order</h6>
-               {order.map((item, idx) => (
-  <div
-    key={idx}
-    className="d-flex justify-content-between align-items-start mb-3 p-2 border rounded"
-  >
-    <div className="flex-grow-1">
-      <div className="fw-semibold">{item.name}</div>
-      <div className="d-flex align-items-center gap-2 mt-1">
-        <span className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"}`}>
-          {item.foodType}
-        </span>
-        {item.instructions && (
-          <small className="text-dark fst-italic">"{item.instructions}"</small>
-        )}
-      </div>
-      <div className="mt-1 d-flex align-items-center gap-2">
-        <button
-          className="btn btn-outline-secondary btn-sm px-2 py-0"
-          onClick={() => {
-            const updated = [...order];
-            if (updated[idx].qty > 1) updated[idx].qty -= 1;
-            else updated.splice(idx, 1);
-            setOrder(updated);
-          }}
-        >
-          −
-        </button>
-        <span>{item.qty}</span>
-        <button
-          className="btn btn-outline-secondary btn-sm px-2 py-0"
-          onClick={() => {
-            const updated = [...order];
-            updated[idx].qty += 1;
-            setOrder(updated);
-          }}
-        >
-          +
-        </button>
-      </div>
-    </div>
-
-    {/* Updated right side: price and remove */}
-    <div className="text-end ms-2 d-flex flex-column align-items-end justify-content-between">
-      <div className="text-success fw-bold">
-        ₹{(item.Price * item.qty).toFixed(2)}
-      </div>
-      <button
-        className="btn btn-link text-danger p-0 small mt-1"
-        onClick={() => setOrder(order.filter((_, i) => i !== idx))}
-      >
-        remove
-      </button>
-    </div>
-  </div>
-))}
-    
+                {order.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="d-flex justify-content-between align-items-start mb-3 p-2 border rounded"
+                  >
+                    <div className="flex-grow-1">
+                      <div className="fw-semibold">{item.name}</div>
+                      <div className="d-flex align-items-center gap-2 mt-1">
+                        <span
+                          className={`badge bg-${item.foodType === "Jain" ? "success" : "primary"
+                            }`}
+                        >
+                          {item.foodType}
+                        </span>
+                        {item.instructions && (
+                          <small className="text-dark fst-italic">
+                            "{item.instructions}"
+                          </small>
+                        )}
+                      </div>
+                      <div className="mt-1 d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          <button
+                            className="btn btn-outline-secondary btn-sm px-2 py-0"
+                            onClick={() => {
+                              const updated = [...order];
+                              if (updated[idx].qty > 1) updated[idx].qty -= 1;
+                              else updated.splice(idx, 1);
+                              setOrder(updated);
+                            }}
+                          >
+                            −
+                          </button>
+                          <span>{item.qty}</span>
+                          <button
+                            className="btn btn-outline-secondary btn-sm px-2 py-0"
+                            onClick={() => {
+                              const updated = [...order];
+                              updated[idx].qty += 1;
+                              setOrder(updated);
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-success fw-bold ms-2">
+                      ₹{(item.Price * item.qty).toFixed(2)}
+                      <div>
+                        <button
+                          className="btn btn-link text-danger p-0 small"
+                          onClick={() => setOrder(order.filter((_, i) => i !== idx))}
+                        >
+                          remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Modal */}
+      {/* Add Item Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="md">
         <Modal.Header closeButton>
           <Modal.Title>Add to Order: {selectedItem?.name}</Modal.Title>
@@ -544,7 +646,7 @@ function MenuPage() {
         </Modal.Footer>
       </Modal>
 
-      {/* Extra CSS for desktop to reset fixed styles */}
+      {/* Extra CSS for desktop */}
       <style>{`
         @media (min-width: 992px) {
           .order-summary-wrapper {

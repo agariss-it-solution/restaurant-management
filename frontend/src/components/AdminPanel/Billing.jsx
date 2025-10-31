@@ -50,17 +50,61 @@ function BillingRevenue() {
   }, []);
 
   useEffect(() => {
-    const loadBills = async () => {
-      try {
-        const response = await getAllBills();
-        const billList = Array.isArray(response) ? response : response.data || [];
-        setBills(billList);
-      } catch (err) {
-        console.error("Failed to load bills:", err);
+  const loadBills = async () => {
+    try {
+      const response = await getAllBills();
+      const billList = Array.isArray(response) ? response : response.data || [];
+
+      // Group unpaid bills by table or customer
+      const grouped = {};
+
+      for (const bill of billList) {
+        const key = bill.customerName || bill.table?.number || bill._id;
+
+        if (!grouped[key]) {
+          grouped[key] = { ...bill, orders: [...bill.orders] };
+        } else {
+          // Merge orders
+          grouped[key].orders.push(...bill.orders);
+        }
       }
-    };
-    loadBills();
-  }, []);
+
+      // Merge duplicate dish names inside each combined bill
+      const mergedBills = Object.values(grouped).map(bill => {
+        const mergedOrders = [];
+
+        // Flatten all items from all orders
+        const allItems = bill.orders.flatMap(order =>
+          order.items.filter(i => !i.isCancelled && i.quantity > 0)
+        );
+
+        // Combine items with same name and price
+        const itemMap = {};
+        for (const item of allItems) {
+          const key = `${item.name}-${item.Price}`;
+          if (!itemMap[key]) {
+            itemMap[key] = { ...item };
+          } else {
+            itemMap[key].quantity += item.quantity;
+          }
+        }
+
+        mergedOrders.push({
+          items: Object.values(itemMap),
+        });
+
+        return { ...bill, orders: mergedOrders };
+      });
+
+      setBills(mergedBills);
+    } catch (err) {
+      console.error("Failed to load bills:", err);
+    }
+  };
+
+  loadBills();
+}, []);
+
 
   const handlePay = async (billId, type) => {
     try {
